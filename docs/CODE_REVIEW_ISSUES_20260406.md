@@ -296,8 +296,10 @@ window.location.hash = `fund/${fund.code}`;  // 缺少 # 前缀
 
 ## 十一、已完成的清理工作
 
-| 操作 | 文件 | 说明 |
-|------|------|------|
-| ✅ 删除 | `useSupabase.ts` 中的废弃函数 | 移除 `useSupabaseConfig`、`verifyPassword`、`setAuthenticated`、`useSupabaseHoldings`、`useSupabaseTransactions`、`addHolding`、`addTransaction`、`deleteHolding`、`deleteTransaction`，仅保留 `useAuthStatus` 和 `signOut` |
-| ✅ 清理 | `csv.ts` 未使用的导入 | 移除 `React`、`useState`、`Card`、`List`、`Button`、`Dialog`、`Tag`、`DownlandOutline`、`UploadOutline`、`useHoldings`、`useTransactions`、`formatMoney` |
-| ✅ 新增 | `lotDerivation.test.ts` | 18 个测试覆盖核心批次派生逻辑 |
+| 操作 | 文件 | 说明 | 对应问题编号 |
+|------|------|------|-------------|
+| ✅ 删除 | `useSupabase.ts` 中的废弃函数 | 移除 `useSupabaseConfig`、`verifyPassword`、`setAuthenticated`、`useSupabaseHoldings`、`useSupabaseTransactions`、`addHolding`、`addTransaction`、`deleteHolding`、`deleteTransaction`，仅保留 `useAuthStatus` 和 `signOut` | 22 |
+| ✅ 清理 | `csv.ts` 未使用的导入 | 移除 `React`、`useState`、`Card`、`List`、`Button`、`Dialog`、`Tag`、`DownlandOutline`、`UploadOutline`、`useHoldings`、`useTransactions`、`formatMoney` | 9 |
+| ✅ 新增 | `lotDerivation.test.ts` | 18 个测试覆盖核心批次派生逻辑（`deriveLots`、`deriveRealizedLots`、`summarizeHoldings`、`matchSellLots`） | 24 |
+| ✅ 新增 | `EDGE_FUNCTIONS_API.md` | 完整的 Edge Functions 接口文档，包含 `fund-nav`、`fund-search`、`fund-history` 的输入输出格式说明 | 27 |
+| ✅ 修复 | 所有 AGENTS.md 文档一致性 | 更新根目录 + 4 个子目录 AGENTS.md 文件，与实际代码架构完全一致，修复文档与实现矛盾问题 | 26 |

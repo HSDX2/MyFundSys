@@ -2,7 +2,8 @@
 
 Personal fund investment management system - mobile web app.
 
-**Tech Stack**: React 18 + TypeScript + Vite + Ant Design Mobile + Supabase (PostgreSQL + Edge Functions)
+**Tech Stack**: React 18.3.x + TypeScript 5.5.x + Vite 5.4.x + Ant Design Mobile 5.x + Recharts 2.x + Dayjs 1.x + Supabase (PostgreSQL + Deno Edge Functions)
+**Testing**: Vitest 4.x (unit tests) + Playwright 1.x (E2E tests)
 
 **Deployment**: GitHub Pages (`npm run deploy`)
 
