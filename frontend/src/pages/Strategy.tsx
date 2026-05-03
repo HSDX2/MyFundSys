@@ -135,9 +135,8 @@ const StrategyPage: React.FC = () => {
     return actions[action] || action;
   };
 
-  // 合并系统策略和自定义策略
-  const customStrategies = JSON.parse(localStorage.getItem('customStrategies') || '[]');
-  const allStrategies = [...strategies, ...customStrategies];
+  // strategies 已包含系统策略和自定义策略（来自 useStrategies hook）
+  const allStrategies = strategies;
 
   return (
     <div className="page-container">

@@ -196,35 +196,39 @@ describe('deriveRealizedLots - 已实现盈亏派生', () => {
   });
 
   describe('部分卖出', () => {
-    it('部分卖出时不记录已实现盈亏', () => {
+    it('部分卖出也记录已实现盈亏', () => {
       const txs = [
         makeBuyTx({ id: 'buy_001', shares: 1000, price: 1.0 }),
         makeSellTx({ id: 'sell_001', shares: 500, price: 1.2 }),
       ];
-      
+
       const realized = deriveRealizedLots(txs);
-      
-      // 只有全部卖出才记录
-      expect(realized).toHaveLength(0);
+
+      // 每次卖出都记录，包括部分卖出
+      expect(realized).toHaveLength(1);
+      expect(realized[0].shares).toBe(500);
+      expect(realized[0].profit).toBeCloseTo(100, 0); // 500 * (1.2 - 1.0)
     });
   });
 
   describe('多批次卖出', () => {
-    it('分批卖出 - 第一笔部分卖出不记录，第二笔完全卖出时记录', () => {
+    it('分批卖出 - 每次卖出都记录已实现盈亏', () => {
       const txs = [
         makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 100, price: 1.0, amount: 100 }),
         makeSellTx({ id: 'sell_001', date: '2024-02-01', shares: 60, price: 1.2, amount: 72 }),
         makeSellTx({ id: 'sell_002', date: '2024-03-01', shares: 40, price: 1.3, amount: 52 }),
       ];
-      
+
       const realized = deriveRealizedLots(txs);
-      
-      // sell_001 卖 60，buy_001 剩 40 → 未完全卖出，不记录
-      // sell_002 卖 40，buy_001 剩 0 → 完全卖出，记录
-      // profit = 40 * 1.3 - 40 * 1.0 = 52 - 40 = 12
-      expect(realized).toHaveLength(1);
+
+      // sell_001 卖 60: profit = 60 * (1.2 - 1.0) = 12
+      // sell_002 卖 40: profit = 40 * (1.3 - 1.0) = 12
+      // 结果按卖出日期倒序排列
+      expect(realized).toHaveLength(2);
       expect(realized[0].profit).toBeCloseTo(12, 0);
-      expect(realized[0].shares).toBe(40);
+      expect(realized[0].shares).toBe(40); // sell_002 (较晚)
+      expect(realized[1].profit).toBeCloseTo(12, 0);
+      expect(realized[1].shares).toBe(60); // sell_001 (较早)
     });
 
     it('单笔完全卖出正确记录盈亏', () => {

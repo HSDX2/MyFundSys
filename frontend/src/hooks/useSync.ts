@@ -261,8 +261,12 @@ export function useStrategies() {
     setLoading(true);
     try {
       // 从 localStorage 加载自定义策略
-      const customStrategies = JSON.parse(localStorage.getItem('customStrategies') || '[]');
-      setStrategies(customStrategies);
+      const raw = localStorage.getItem('customStrategies');
+      const customStrategies = raw ? JSON.parse(raw) : [];
+      setStrategies(Array.isArray(customStrategies) ? customStrategies : []);
+    } catch (e) {
+      console.warn('解析自定义策略失败:', e);
+      setStrategies([]);
     } finally {
       setLoading(false);
     }

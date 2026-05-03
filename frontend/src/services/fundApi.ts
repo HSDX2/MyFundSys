@@ -341,14 +341,15 @@ export async function getFundHistoryWithCache(
   days = HISTORY_CACHE_DAYS
 ): Promise<MiniHistoryPoint[]> {
   try {
-    const cached = historyCache.get(fundCode);
+    const cacheKey = `${fundCode}_${days}`;
+    const cached = historyCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < HISTORY_CACHE_VALID_MS) {
       return cached.data;
     }
 
     const apiData = await fetchFundHistoryBatch(fundCode, days);
     const result = apiData.map(item => ({ date: item.date, nav: item.nav }));
-    historyCache.set(fundCode, { data: result, timestamp: Date.now() });
+    historyCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   } catch (error) {
     console.error(`获取历史缓存失败 ${fundCode}:`, error);

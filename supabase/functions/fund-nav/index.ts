@@ -29,7 +29,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
   ];
   
   // 检查请求的 origin 是否在允许列表中
-  const allowOrigin = allowedOrigins.includes(origin) ? origin : '*';
+  const allowOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
   
   return {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -108,7 +108,7 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error('获取基金净值失败:', error);
     return new Response(
-      JSON.stringify({ error: '获取基金净值失败', message: error.message }),
+      JSON.stringify({ error: '获取基金净值失败', message: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }
     );
   }

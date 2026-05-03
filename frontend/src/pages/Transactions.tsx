@@ -158,21 +158,14 @@ const Transactions: React.FC = () => {
     const fetchDateNav = async () => {
       const today = new Date().toISOString().split('T')[0];
 
-      if (dialogDate === today) {
-        if (!isTradeDay(new Date())) {
-          setIsPendingNav(true);
-          setSelectedDateNav(null);
-          return;
-        }
-        if (currentNav) {
-          setIsPendingNav(false);
-          setSelectedDateNav({ nav: currentNav, date: today });
-        } else {
-          setIsPendingNav(true);
-          setSelectedDateNav(null);
-        }
+      // 当天及未来日期：无法确认净值，标记为在途
+      if (dialogDate >= today) {
+        setIsPendingNav(true);
+        setSelectedDateNav(null);
         return;
       }
+
+      // 历史日期：查询已确认净值
 
       setIsDateNavLoading(true);
       try {
@@ -257,10 +250,14 @@ const Transactions: React.FC = () => {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      if (filterKey === 'pending') return t.status === 'pending';
-      if (filterKey === 'buy') return t.type === 'buy' && t.status === 'completed';
-      if (filterKey === 'sell') return t.type === 'sell' && t.status === 'completed';
+      // 类型过滤
+      if (filterKey === 'pending' && t.status !== 'pending') return false;
+      if (filterKey === 'buy' && (t.type !== 'buy' || t.status !== 'completed')) return false;
+      if (filterKey === 'sell' && (t.type !== 'sell' || t.status !== 'completed')) return false;
+
+      // 基金过滤（所有 filterKey 下都生效）
       if (selectedFundCode !== 'all' && t.fundCode !== selectedFundCode) return false;
+
       return true;
     });
   }, [transactions, filterKey, selectedFundCode]);
@@ -337,9 +334,11 @@ const Transactions: React.FC = () => {
       }
 
       if (!tradePrice) {
-        const isHistoricalDate = actualTradeDay < today;
-
-        if (isHistoricalDate) {
+        // 当天及未来日期：无法确认净值，标记为在途
+        if (actualTradeDay >= today) {
+          isPending = true;
+        } else {
+          // 历史日期：获取已确认净值
           try {
             let historyData = await fetchFundHistory(selectedFund.code, 1, 1, values.date, values.date);
             if (historyData.length > 0) {
@@ -355,27 +354,6 @@ const Transactions: React.FC = () => {
             }
           } catch (error) {
             console.error('获取历史净值失败:', error);
-          }
-        } else {
-          if (!isTradeDay(tradeDate)) {
-            isPending = true;
-          } else {
-            tradePrice = currentNav;
-            if (!tradePrice) {
-              try {
-                const navData = await fetchFundNav(selectedFund.code);
-                tradePrice = navData?.nav || 0;
-              } catch (error) {
-                console.log('无法获取净值');
-              }
-            }
-
-            const isAfterNavTime = new Date().getHours() >= 21;
-            if (actualTradeDay > today) {
-              isPending = true;
-            } else if (actualTradeDay.getTime() === today.getTime() && !isAfterNavTime) {
-              isPending = true;
-            }
           }
         }
       }

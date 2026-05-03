@@ -121,32 +121,30 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
       const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
       lot.remainingShares -= sellFromLot;
 
-      // 如果该批次全部卖出（剩余份额 < 0.01 视为已卖完），记录已实现盈亏
-      if (lot.remainingShares < 0.01) {
-        const sellDate = new Date(sell.date);
-        const buyDate = new Date(lot.date);
-        const holdingDays = Math.max(0, Math.floor((sellDate.getTime() - buyDate.getTime()) / (1000 * 60 * 60 * 24)));
-        const cost = sellFromLot * lot.cost;
-        const revenue = sellFromLot * sell.price;
-        const profit = revenue - cost;
-        const profitRate = cost > 0 ? profit / cost : 0;
+      // 每次卖出都记录已实现盈亏（包括部分卖出）
+      const sellDate = new Date(sell.date);
+      const buyDate = new Date(lot.date);
+      const holdingDays = Math.max(0, Math.floor((sellDate.getTime() - buyDate.getTime()) / (1000 * 60 * 60 * 24)));
+      const cost = sellFromLot * lot.cost;
+      const revenue = sellFromLot * sell.price;
+      const profit = revenue - cost;
+      const profitRate = cost > 0 ? profit / cost : 0;
 
-        realizedLots.push({
-          id: lot.id,
-          fundCode: lot.fundCode,
-          fundName: lot.fundName,
-          buyDate: lot.date,
-          sellDate: sell.date,
-          shares: sellFromLot,
-          buyNav: lot.cost,
-          sellNav: sell.price,
-          cost,
-          revenue,
-          profit,
-          profitRate,
-          holdingDays,
-        });
-      }
+      realizedLots.push({
+        id: lot.id,
+        fundCode: lot.fundCode,
+        fundName: lot.fundName,
+        buyDate: lot.date,
+        sellDate: sell.date,
+        shares: sellFromLot,
+        buyNav: lot.cost,
+        sellNav: sell.price,
+        cost,
+        revenue,
+        profit,
+        profitRate,
+        holdingDays,
+      });
     }
   }
 
@@ -210,8 +208,10 @@ export function matchSellLots(
   fundCode: string,
   sellShares: number
 ): SellMatchResult {
+  // 使用副本避免修改输入数组
   const fundLots = lots
     .filter(l => l.fundCode === fundCode && l.remainingShares > 0)
+    .map(l => ({ ...l }))
     .sort((a, b) => a.cost - b.cost);
 
   let remainingToSell = sellShares;
@@ -451,7 +451,10 @@ export async function removeTransactionWithHoldingUpdate(
 
   if (!transaction) return;
 
-  await supabase.from('transactions').delete().eq('id', transactionId);
+  const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
+  if (error) {
+    throw new Error(`删除交易失败: ${error.message}`);
+  }
 }
 
 /**
@@ -579,12 +582,16 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
         amount = shares * tradePrice;
       }
 
-      await supabase.from('transactions').update({
+      const { error: updateError } = await supabase.from('transactions').update({
         nav: tradePrice,
         shares,
         amount,
         status: 'completed',
       }).eq('id', transaction.id);
+
+      if (updateError) {
+        throw new Error(`更新失败: ${updateError.message}`);
+      }
 
       processedCount++;
       console.log(`[Pending] 处理完成: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值: ${tradePrice}`);

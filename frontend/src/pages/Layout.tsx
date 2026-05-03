@@ -107,7 +107,7 @@ const Layout: React.FC = () => {
   // 渲染当前内容
   const renderContent = () => {
     if (currentView.type === 'fundDetail') {
-      return <FundDetail />;
+      return <FundDetail key={currentView.params.fundCode} />;
     }
     return activeTab?.component;
   };

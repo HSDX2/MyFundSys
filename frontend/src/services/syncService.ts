@@ -43,6 +43,7 @@ interface DbTransaction {
   amount: number;
   fee: number;
   date: string;
+  confirm_date?: string;
   status: 'pending' | 'completed';
   created_at: string;
   updated_at: string;
@@ -99,6 +100,7 @@ function toDbTransaction(tx: Transaction): Omit<DbTransaction, 'id' | 'created_a
     amount: tx.amount,
     fee: tx.fee || 0,
     date: tx.date,
+    confirm_date: tx.confirmDate || tx.date,
     status: tx.status || 'completed',
   };
 }
@@ -114,7 +116,7 @@ function fromDbTransaction(db: DbTransaction): Transaction {
     fundName: db.fund_name,
     type: db.type,
     date: db.date,
-    confirmDate: db.date,
+    confirmDate: db.confirm_date || db.date,
     amount: db.amount,
     price: db.nav,
     shares: db.shares,
@@ -189,6 +191,9 @@ export async function fetchAllDataFromSupabase() {
       supabase.from('holdings').select('*'),
       supabase.from('transactions').select('*'),
     ]);
+
+    if (holdingsRes.error) console.warn('获取持仓数据失败:', holdingsRes.error.message);
+    if (transactionsRes.error) console.warn('获取交易数据失败:', transactionsRes.error.message);
 
     const holdings = (holdingsRes.data as DbHolding[] || []).map(fromDbHolding);
     const transactions = (transactionsRes.data as DbTransaction[] || []).map(fromDbTransaction);
