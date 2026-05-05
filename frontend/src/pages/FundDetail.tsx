@@ -28,7 +28,7 @@ const FundDetail: React.FC = () => {
   // 解析 hash 获取 fundCode
   useEffect(() => {
     const hash = window.location.hash;
-    const match = hash.match(/#fund\/(.+)/);
+    const match = hash.match(/#fund\/([^?#/]+)/);
     if (match) {
       setFundCode(match[1]);
     }
@@ -46,13 +46,14 @@ const FundDetail: React.FC = () => {
           .eq('fund_code', fundCode)
           .limit(1)
           .maybeSingle();
-        setIsFavorite(!!favorite);
-        
-        if (favorite) {
+        const fav = favorite as any;
+        setIsFavorite(!!fav);
+
+        if (fav) {
           setFundInfo({
-            code: favorite.fund_code,
-            name: favorite.fund_name,
-            category: favorite.category || '未知',
+            code: fav.fund_code,
+            name: fav.fund_name,
+            category: fav.category || '未知',
           });
         }
       }
@@ -74,14 +75,12 @@ const FundDetail: React.FC = () => {
       const data = await fetchFundNav(fundCode);
       if (data) {
         setFundData(data);
-        // 如果 fundInfo 还没有，用 API 返回的数据设置
-        if (!fundInfo) {
-          setFundInfo({
-            code: fundCode,
-            name: data.name || fundCode,
-            category: '未知',
-          });
-        }
+        // 使用函数式更新避免闭包陈旧问题
+        setFundInfo(prev => prev || {
+          code: fundCode,
+          name: data.name || fundCode,
+          category: '未知',
+        });
       }
     } catch (error) {
       Toast.show({ content: '获取基金数据失败', position: 'bottom' });

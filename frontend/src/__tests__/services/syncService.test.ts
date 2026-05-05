@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ---- Mock Supabase（vi.hoisted 确保在模块加载前初始化）----
-const mockInsert = vi.hoisted(() => vi.fn());
+const mockUpsert = vi.hoisted(() => vi.fn());
 const mockDelete = vi.hoisted(() => vi.fn());
 const mockSelect = vi.hoisted(() => vi.fn());
 const mockFrom = vi.hoisted(() => vi.fn(() => ({
-  insert: mockInsert,
+  upsert: mockUpsert,
   delete: mockDelete,
   select: mockSelect,
 })));
@@ -30,10 +30,10 @@ describe('syncService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsSupabaseConfigured.mockReturnValue(true);
-    // 模拟链式调用: .delete().neq('id', '0') 和 .insert()
+    // 模拟链式调用: .delete().neq('id', '0') 和 .upsert()
     const mockNeq = vi.fn().mockResolvedValue({ error: null });
     mockDelete.mockReturnValue({ neq: mockNeq });
-    mockInsert.mockResolvedValue({ error: null });
+    mockUpsert.mockResolvedValue({ error: null });
     mockSelect.mockResolvedValue({ error: null, count: 0 });
   });
 
@@ -62,12 +62,12 @@ describe('syncService', () => {
       const result = await syncHoldingsToSupabase(holdings);
 
       expect(mockDelete).toHaveBeenCalled();
-      expect(mockInsert).toHaveBeenCalled();
+      expect(mockUpsert).toHaveBeenCalled();
       expect(result.success).toBe(true);
     });
 
     it('Supabase 错误时返回失败', async () => {
-      mockInsert.mockReturnValue({ error: new Error('DB Error') });
+      mockUpsert.mockReturnValue({ error: new Error('DB Error') });
 
       const holdings: Holding[] = [
         {
@@ -116,7 +116,7 @@ describe('syncService', () => {
       const result = await syncTransactionsToSupabase(transactions);
 
       expect(mockDelete).toHaveBeenCalled();
-      expect(mockInsert).toHaveBeenCalled();
+      expect(mockUpsert).toHaveBeenCalled();
       expect(result.success).toBe(true);
     });
 

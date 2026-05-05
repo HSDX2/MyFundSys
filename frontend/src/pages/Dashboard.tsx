@@ -10,7 +10,7 @@ import './Layout.css';
 
 const Dashboard: React.FC = () => {
   const { holdings, refresh } = useHoldings();
-  const { transactions } = useTransactions();
+  const { transactions, refresh: refreshTransactions } = useTransactions();
   const [valuation, setValuation] = useState<MarketValuationData | null>(null);
 
   useEffect(() => {
@@ -22,6 +22,7 @@ const Dashboard: React.FC = () => {
           position: 'bottom'
         });
         refresh();
+        refreshTransactions();
       }
     });
   }, []);

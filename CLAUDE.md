@@ -69,11 +69,11 @@ Frontend → supabase.functions.invoke(fnName, {body: {...}})
 
 Edge Function 契约：
 
-| Function | Input | Output |
-|----------|-------|--------|
-| `fund-nav` | `{ code }` | `{ code, name, nav, navDate, estimateNav?, estimateRate? }` |
-| `fund-search` | `{ keyword }` | `Array<{ code, name, type }>` |
-| `fund-history` | `{ code, pageSize?, pageIndex?, startDate?, endDate? }` | `Array<{ date, nav, accNav, dailyChangeRate, buyStatus, sellStatus }>` |
+| Function | Input | Output | EastMoney Endpoint |
+|----------|-------|--------|--------------------|
+| `fund-nav` | `{ code }` | `{ code, name, nav, navDate, estimateNav?, estimateRate? }` | `fundmobapi.eastmoney.com/FundMNewApi/FundMNFInfo` |
+| `fund-search` | `{ keyword }` | `Array<{ code, name, type }>` | `fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx` |
+| `fund-history` | `{ code, pageSize?, pageIndex?, startDate?, endDate? }` | `Array<{ date, nav, accNav, dailyChangeRate, buyStatus, sellStatus }>` | `api.fund.eastmoney.com/f10/lsjz` |
 
 ### Data Architecture — Lot Derivation (核心业务逻辑)
 
@@ -94,12 +94,42 @@ deriveLots(transactions) → Lot[]
 - `matchSellLots()` — 卖出时匹配扣减持仓批次
 - `processPendingTransactions()` — 在途交易自动确认（使用 `window.__pendingTransactionsProcessing` 防重复调用）
 
+### Sell Matching 流程
+
+```
+Sell shares → find lots for fund (sorted by cost ascending)
+  → deduct from each lot until sell amount satisfied
+  → create sell transaction
+  → lots fully sold → move to realized P&L
+```
+
+### Total Assets 计算
+
+```
+totalAssets = Σ(lot.remainingShares × currentNav) + pendingBuyAmount
+totalCost = Σ(lot.remainingShares × lot.cost) + pendingBuyAmount
+floatingPnL = totalAssets - totalCost
+realizedPnL = Σ(realizedLots.profit)
+cumulativePnL = floatingPnL + realizedPnL
+```
+
+### Data Flow (端到端)
+
+```
+Supabase DB → fetchAllDataFromSupabase() → transactions[]
+  → deriveLots(transactions) → Lot[]
+  → summarizeHoldings(lots) → Holding[]
+  → batchFetchNav(codes) → enrich with live NAV
+  → UI components
+```
+
 ### Data Source
 
 Supabase 是唯一数据源（IndexedDB 已弃用）。所有读写通过 Supabase 客户端或 Edge Functions。
 
 - Use `isSupabaseConfigured()` to gate operations, never hardcode environment checks
 - **Never** use `if (isGitHubPages)` workarounds (already removed, do not reintroduce)
+- **Dev proxy**: Vite 开发服务器代理 `/api` → Supabase Edge Functions（`vite.config.ts` 中配置），本地开发免 CORS
 
 ### Routing
 
@@ -122,7 +152,7 @@ Hash-based routing（非 react-router routes），Layout.tsx 底部 TabBar 导�
 | ---- | ------- |
 | `frontend/src/pages/Layout.tsx` | Main layout + bottom Tab navigation + hash routing |
 | `frontend/src/services/navUpdateService.ts` | Core business logic: lot derivation, sell matching, realized P&L |
-| `frontend/src/services/fundApi.ts` | Fund data API (search/nav/cache/history) |
+| `frontend/src/services/fundApi.ts` | Fund data API (search/nav/cache/history), in-memory cache: NAV 5min, history 24h |
 | `frontend/src/hooks/useSync.ts` | Data access hooks (holdings derived from transactions) |
 | `frontend/src/hooks/useSupabase.ts` | Supabase CRUD hooks |
 | `frontend/src/lib/supabase.ts` | Supabase client + `isSupabaseConfigured()` |
@@ -182,6 +212,11 @@ RLS enabled with ALLOW ALL policy (single-user mode, no user_id field).
 - Services/Utils: camelCase (`fundApi.ts`)
 - Tests: `*.test.ts`
 
+**Imports**:
+- React imports first, then third-party, then local
+- Use `import type { ... }` for type-only imports
+- Relative paths for local imports (`../hooks/useSync`)
+
 **Data operations**:
 - Read: Use `useSync.ts` hooks (fetches from Supabase, derives holdings)
 - Write: Use `useSupabase.ts` functions or `navUpdateService.ts` transaction helpers
@@ -215,6 +250,11 @@ frontend/.env.local    → 测试 Supabase（本地优先，不提交）
 ## Unused Dependencies
 
 `dexie`, `react-router-dom`, `axios` 在 package.json 中但源码未引用，可清理。
+
+## Dead Code
+
+- `types/supabase.ts` — 旧版 Supabase 类型定义，活跃版本是 `types/database.ts`
+- `supabase/functions/twitter-posts/` — 空目录，`twitterService.ts` 引用但未部署
 
 ---
 

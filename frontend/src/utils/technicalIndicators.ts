@@ -144,19 +144,20 @@ export function calculateKDJ(
  * @param data 历史净值数据
  * @param period 周期
  */
-export function calculateMA(data: HistoryPoint[], period: number): { date: string; value: number }[] {
-  const result: { date: string; value: number }[] = [];
+export function calculateMA(data: HistoryPoint[], period: number): { date: string; value: number | undefined }[] {
+  const result: { date: string; value: number | undefined }[] = [];
   const prices = data.map(d => d.nav);
-  
+
   for (let i = 0; i < data.length; i++) {
     if (i < period - 1) {
-      result.push({ date: data[i].date, value: prices[i] });
+      // 数据不足，返回 undefined 而非当前价格，避免产生虚假信号
+      result.push({ date: data[i].date, value: undefined });
     } else {
       const sum = prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
       result.push({ date: data[i].date, value: Number((sum / period).toFixed(4)) });
     }
   }
-  
+
   return result;
 }
 

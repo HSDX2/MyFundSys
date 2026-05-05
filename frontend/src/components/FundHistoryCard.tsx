@@ -60,8 +60,6 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
     const loadHistory = async () => {
       setLoading(true);
       const startDate = getStartDate(timeRange);
-      console.log('[HistoryCard] Loading', timeRange, '- from', startDate || 'all');
-      
       let allData: FundHistoryData[] = [];
       let pageIndex = 1;
       const maxPages = 50; // 最多加载50页（约1000条，每页20条）
@@ -87,9 +85,7 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
       
       // API返回的数据是倒序（最新在前），需要按时间正序排列（最旧在前）以便图表显示
       allData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      console.log('[HistoryCard] Loaded', allData.length, 'records from', pageIndex, 'pages');
-      
+
       if (isMounted) {
         setHistoryData(allData);
         setLoading(false);
@@ -113,8 +109,6 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
     // 根据时间范围获取动态参数
     const macdParams = getMACDParams(timeRange);
     const kdjParams = getKDJParams(timeRange);
-    
-    console.log('[Indicators] MACD params:', macdParams.label, 'KDJ params:', kdjParams.label);
     
     const macd = calculateMACD(points, macdParams.fastPeriod, macdParams.slowPeriod, macdParams.signalPeriod);
     const kdj = calculateKDJ(points, kdjParams.n, kdjParams.m1, kdjParams.m2);
@@ -155,8 +149,6 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
   const hasMACD = chartData.length > 0 && chartData[chartData.length - 1]?.dif !== undefined;
   const hasKDJ = chartData.length > 0 && chartData[chartData.length - 1]?.k !== undefined;
   const hasIndicators = hasMACD || hasKDJ;
-  
-  console.log('[Debug] Data points:', historyData.length, 'hasMACD:', hasMACD, 'hasKDJ:', hasKDJ);
 
   // 时间区间选项
   const timeRangeOptions: { key: TimeRange; label: string }[] = [

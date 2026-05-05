@@ -149,7 +149,7 @@ describe('fetchFundNav', () => {
 
     expect(result).not.toBeNull();
     expect(result!.dailyChangeRate).toBe(2.5);
-    expect(result!.dailyChange).toBeCloseTo(0.0375, 4); // 1.5 * 2.5%
+    expect(result!.dailyChange).toBeCloseTo(0.0366, 4); // 1.5 - 1.5/(1+2.5%)
   });
 
   it('Supabase 返回 error 时返回 null', async () => {

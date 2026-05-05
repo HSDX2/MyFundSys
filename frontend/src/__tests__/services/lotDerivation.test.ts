@@ -249,8 +249,8 @@ describe('deriveRealizedLots - 已实现盈亏派生', () => {
 describe('summarizeHoldings - 持仓汇总', () => {
   it('同一基金多批次合并计算', () => {
     const lots: Lot[] = [
-      { id: '1', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 500, cost: 1.0, date: '2024-01-01' },
-      { id: '2', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 300, cost: 1.5, date: '2024-02-01' },
+      { id: '1', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 500, cost: 1.0, date: '2024-01-01', isPending: false },
+      { id: '2', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 300, cost: 1.5, date: '2024-02-01', isPending: false },
     ];
     
     const summary = summarizeHoldings(lots);
@@ -263,8 +263,8 @@ describe('summarizeHoldings - 持仓汇总', () => {
 
   it('不同基金分别汇总', () => {
     const lots: Lot[] = [
-      { id: '1', fundCode: '000001', fundName: '华夏', shares: 100, remainingShares: 100, cost: 1.0, date: '2024-01-01' },
-      { id: '2', fundCode: '000002', fundName: '易方达', shares: 200, remainingShares: 200, cost: 2.0, date: '2024-01-01' },
+      { id: '1', fundCode: '000001', fundName: '华夏', shares: 100, remainingShares: 100, cost: 1.0, date: '2024-01-01', isPending: false },
+      { id: '2', fundCode: '000002', fundName: '易方达', shares: 200, remainingShares: 200, cost: 2.0, date: '2024-01-01', isPending: false },
     ];
     
     const summary = summarizeHoldings(lots);
@@ -276,8 +276,8 @@ describe('summarizeHoldings - 持仓汇总', () => {
 describe('matchSellLots - 卖出匹配', () => {
   it('基础卖出匹配', () => {
     const lots: Lot[] = [
-      { id: '1', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 500, cost: 1.0, date: '2024-01-01' },
-      { id: '2', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 500, cost: 1.5, date: '2024-02-01' },
+      { id: '1', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 500, cost: 1.0, date: '2024-01-01', isPending: false },
+      { id: '2', fundCode: '000001', fundName: '华夏', shares: 500, remainingShares: 500, cost: 1.5, date: '2024-02-01', isPending: false },
     ];
     
     const result = matchSellLots(lots, '000001', 300);
@@ -290,7 +290,7 @@ describe('matchSellLots - 卖出匹配', () => {
 
   it('卖出超过持仓返回剩余', () => {
     const lots: Lot[] = [
-      { id: '1', fundCode: '000001', fundName: '华夏', shares: 100, remainingShares: 100, cost: 1.0, date: '2024-01-01' },
+      { id: '1', fundCode: '000001', fundName: '华夏', shares: 100, remainingShares: 100, cost: 1.0, date: '2024-01-01', isPending: false },
     ];
     
     const result = matchSellLots(lots, '000001', 150);

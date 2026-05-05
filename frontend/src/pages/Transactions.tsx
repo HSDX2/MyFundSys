@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Card, List, CapsuleTabs, Tag, Toast, SwipeAction, Dialog, Button, Form, Input, SearchBar, SpinLoading } from 'antd-mobile';
 import { AddOutline, CloseOutline } from 'antd-mobile-icons';
 
@@ -8,6 +8,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { searchByCode, fetchFundNav, fetchFundHistory } from '../services/fundApi';
 import type { FundSearchResult } from '../types';
 import { formatMoney, formatDate, isTradeDay, getNextTradeDay } from '../utils';
+import { formatLocalDate } from '../utils/csv';
 import './Layout.css';
 
 type FilterKey = 'all' | 'buy' | 'sell' | 'pending';
@@ -72,7 +73,7 @@ const Transactions: React.FC = () => {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [form] = Form.useForm();
-  const [dialogDate, setDialogDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dialogDate, setDialogDate] = useState<string>(formatLocalDate(new Date()));
 
   const [codeSearchText, setCodeSearchText] = useState('');
   const [codeSearchResults, setCodeSearchResults] = useState<FundSearchResult[]>([]);
@@ -84,6 +85,7 @@ const Transactions: React.FC = () => {
   const [selectedDateNav, setSelectedDateNav] = useState<{ nav: number; date: string } | null>(null);
   const [isDateNavLoading, setIsDateNavLoading] = useState(false);
   const [isPendingNav, setIsPendingNav] = useState(false);
+  const navLoadedRef = useRef(false);
 
   const [fundSearchText, setFundSearchText] = useState('');
   const [showFundDropdown, setShowFundDropdown] = useState(false);
@@ -109,6 +111,7 @@ const Transactions: React.FC = () => {
   }, [codeSearchText]);
 
   const handleSelectFund = (fund: FundSearchResult) => {
+    navLoadedRef.current = false;
     setSelectedFund(fund);
     setCodeSearchText(fund.code);
     setCodeSearchResults([]);
@@ -156,7 +159,8 @@ const Transactions: React.FC = () => {
     let cancelled = false;
 
     const fetchDateNav = async () => {
-      const today = new Date().toISOString().split('T')[0];
+      navLoadedRef.current = false; // 日期变化时重置，允许重新自动计算
+      const today = formatLocalDate(new Date());
 
       // 当天及未来日期：无法确认净值，标记为在途
       if (dialogDate >= today) {
@@ -210,11 +214,16 @@ const Transactions: React.FC = () => {
   useEffect(() => {
     if (isPendingNav) {
       form.setFieldsValue({ shares: undefined, amount: undefined });
+      navLoadedRef.current = false;
       return;
     }
 
     const nav = selectedDateNav?.nav || currentNav;
     if (!nav) return;
+
+    // NAV 首次加载时自动计算，之后不再覆盖用户手动输入
+    if (navLoadedRef.current) return;
+    navLoadedRef.current = true;
 
     const amount = parseFloat(form.getFieldValue('amount') || '0');
     const shares = parseFloat(form.getFieldValue('shares') || '0');
@@ -362,7 +371,7 @@ const Transactions: React.FC = () => {
         isPending = true;
       }
 
-      const confirmDate = actualTradeDay.toISOString().split('T')[0];
+      const confirmDate = formatLocalDate(actualTradeDay);
 
       let shares: number;
       let amount: number;
@@ -374,7 +383,7 @@ const Transactions: React.FC = () => {
         finalPrice = isPending ? 0 : (tradePrice || 0);
       } else {
         shares = Number(values.shares);
-        amount = isPending ? 0 : shares * (tradePrice || 0);
+        amount = shares * (tradePrice || 0);
         finalPrice = isPending ? 0 : (tradePrice || 0);
       }
 
@@ -458,7 +467,7 @@ const Transactions: React.FC = () => {
         block
         color="primary"
         onClick={() => {
-          setDialogDate(new Date().toISOString().split('T')[0]);
+          setDialogDate(formatLocalDate(new Date()));
           setShowAddDialog(true);
         }}
         style={{ marginBottom: 12 }}
@@ -835,10 +844,10 @@ const Transactions: React.FC = () => {
               name="date"
               label="交易日期"
               rules={[{ required: true }]}
-              initialValue={new Date().toISOString().split('T')[0]}
+              initialValue={formatLocalDate(new Date())}
             >
               <Input type="date" style={{ height: 44 }} onChange={(val) => {
-                setDialogDate(val || new Date().toISOString().split('T')[0]);
+                setDialogDate(val || formatLocalDate(new Date()));
               }} />
             </Form.Item>
 

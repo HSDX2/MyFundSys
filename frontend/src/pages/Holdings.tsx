@@ -5,6 +5,7 @@ import { useHoldings, useTransactions } from '../hooks/useSync';
 import { deriveLots, deriveRealizedLots, type Lot } from '../services/navUpdateService';
 import { fetchFundNav, batchFetchNav } from '../services/fundApi';
 import { formatMoney, formatPercent } from '../utils';
+import { formatLocalDate } from '../utils/csv';
 import TotalAssetsCard from '../components/TotalAssetsCard';
 import './Layout.css';
 
@@ -47,10 +48,16 @@ const Holdings: React.FC = () => {
     lot: Lot | null;
     shares: string;
     loading: boolean;
-  }>({ lot: null, shares: '', loading: false });
+    nav: number | null;
+  }>({ lot: null, shares: '', loading: false, nav: null });
 
-  const handleSellClick = (lot: Lot) => {
-    setSellModal({ lot, shares: '', loading: false });
+  const handleSellClick = async (lot: Lot) => {
+    setSellModal({ lot, shares: '', loading: false, nav: null });
+    // 获取最新净值用于预览
+    const navData = await fetchFundNav(lot.fundCode);
+    if (navData && navData.nav > 0) {
+      setSellModal(prev => ({ ...prev, nav: navData.nav }));
+    }
   };
 
   const handleSellFraction = (fraction: number) => {
@@ -74,15 +81,17 @@ const Holdings: React.FC = () => {
 
     setSellModal(prev => ({ ...prev, loading: true }));
     try {
-      // 获取最新净值
-      const navData = await fetchFundNav(sellModal.lot!.fundCode);
-      // 验证 NAV 有效性，无法获取时阻止操作
-      if (!navData || navData.nav <= 0) {
-        Toast.show({ content: '无法获取最新净值，请稍后再试', position: 'bottom' });
-        setSellModal(prev => ({ ...prev, loading: false }));
-        return;
+      // 使用已获取的净值，或重新获取
+      let price = sellModal.nav;
+      if (!price || price <= 0) {
+        const navData = await fetchFundNav(sellModal.lot!.fundCode);
+        if (!navData || navData.nav <= 0) {
+          Toast.show({ content: '无法获取最新净值，请稍后再试', position: 'bottom' });
+          setSellModal(prev => ({ ...prev, loading: false }));
+          return;
+        }
+        price = navData.nav;
       }
-      const price = navData.nav;
       const amount = sellShares * price;
 
       // 创建卖出交易
@@ -91,7 +100,7 @@ const Holdings: React.FC = () => {
         fundCode: sellModal.lot!.fundCode,
         fundName: sellModal.lot!.fundName,
         type: 'sell',
-        date: new Date().toISOString().split('T')[0],
+        date: formatLocalDate(new Date()),
         amount,
         price,
         shares: sellShares,
@@ -99,7 +108,7 @@ const Holdings: React.FC = () => {
         status: 'completed',
       });
 
-      setSellModal({ lot: null, shares: '', loading: false });
+      setSellModal({ lot: null, shares: '', loading: false, nav: null });
       Toast.show({ content: '卖出成功', position: 'bottom' });
       await refresh();
       await refreshTransactions();
@@ -346,7 +355,7 @@ const Holdings: React.FC = () => {
       {/* 卖出弹窗 */}
       <Popup
         visible={!!sellModal.lot}
-        onMaskClick={() => setSellModal({ lot: null, shares: '', loading: false })}
+        onMaskClick={() => setSellModal({ lot: null, shares: '', loading: false, nav: null })}
         position="bottom"
         bodyStyle={{ borderTopLeftRadius: '16px', borderTopRightRadius: '16px', minHeight: '300px' }}
       >
@@ -356,7 +365,7 @@ const Holdings: React.FC = () => {
               <div style={{ fontSize: 16, fontWeight: 600 }}>
                 卖出 - {sellModal.lot.fundName || sellModal.lot.fundCode}
               </div>
-              <CloseOutline onClick={() => setSellModal({ lot: null, shares: '', loading: false })} style={{ fontSize: 20, color: '#999' }} />
+              <CloseOutline onClick={() => setSellModal({ lot: null, shares: '', loading: false, nav: null })} style={{ fontSize: 20, color: '#999' }} />
             </div>
 
             <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>
@@ -412,14 +421,14 @@ const Holdings: React.FC = () => {
 
             {sellModal.shares && !isNaN(parseFloat(sellModal.shares)) && (
               <div style={{ fontSize: 13, color: '#666', marginBottom: 20 }}>
-                预计金额: {formatMoney(parseFloat(sellModal.shares) * (lotNavMap.get(sellModal.lot!.fundCode)?.nav ?? sellModal.lot!.cost))}
+                预计金额: {formatMoney(parseFloat(sellModal.shares) * (sellModal.nav ?? lotNavMap.get(sellModal.lot!.fundCode)?.nav ?? sellModal.lot!.cost))}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 12 }}>
               <Button
                 block
-                onClick={() => setSellModal({ lot: null, shares: '', loading: false })}
+                onClick={() => setSellModal({ lot: null, shares: '', loading: false, nav: null })}
                 style={{ flex: 1 }}
               >
                 取消

@@ -191,7 +191,7 @@ export function useTransactions() {
       status: transaction.status || 'completed',
     };
     const { data } = await supabase.from('transactions').insert(payload as any).select();
-    return data?.[0]?.id;
+    return (data as any)?.[0]?.id;
   }, []);
 
   const removeTransaction = useCallback(async (id: string) => {
@@ -240,9 +240,10 @@ async function enrichHoldingsWithNav(summaries: ReturnType<typeof summarizeHoldi
       shares: summary.shares,
       avgCost: summary.avgCost,
       totalCost: summary.totalCost,
-      currentValue: summary.totalCost,
-      profit: 0,
-      profitRate: 0,
+      currentNav: undefined, // NAV 不可用，UI 可据此显示提示
+      currentValue: undefined, // 不用成本冒充市值，UI 应显示"--"
+      profit: undefined,
+      profitRate: undefined,
       createdAt: '',
       updatedAt: '',
     };

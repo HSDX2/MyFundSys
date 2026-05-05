@@ -77,13 +77,15 @@ export async function runBacktest(params: BacktestParams): Promise<BacktestResul
       }
     }
 
+    // 最后一天记录交易后净值，其余记录交易前净值
+    const isLast = data === priceData[priceData.length - 1];
     equityCurve.push({
       date: data.date,
-      value: currentValue,
+      value: isLast ? cash + shares * data.price : currentValue,
     });
   }
 
-  const finalValue = cash + shares * (priceData[priceData.length - 1]?.price || 0);
+  const finalValue = equityCurve[equityCurve.length - 1]?.value || 0;
   const totalReturn = (finalValue - initialCapital) / initialCapital;
 
   // 计算年化收益率

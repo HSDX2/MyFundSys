@@ -45,6 +45,12 @@ const Layout: React.FC = () => {
       } else if (hash === 'funds' || hash.startsWith('funds?')) {
         setActiveKey('funds');
         setCurrentView({ type: 'tab' });
+      } else if (hash === 'strategy' || hash.startsWith('strategy?')) {
+        setActiveKey('strategy');
+        setCurrentView({ type: 'tab' });
+      } else if (hash === 'settings' || hash.startsWith('settings?')) {
+        setActiveKey('settings');
+        setCurrentView({ type: 'tab' });
       } else {
         // 无效 hash 回退到 dashboard
         setActiveKey('dashboard');

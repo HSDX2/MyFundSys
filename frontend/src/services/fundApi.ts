@@ -59,7 +59,7 @@ async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null>
           name: data.name,
           nav: data.nav,
           navDate: data.navDate,
-          dailyChange: latestHistory.nav * (latestHistory.dailyChangeRate / 100),
+          dailyChange: latestHistory.nav - latestHistory.nav / (1 + latestHistory.dailyChangeRate / 100),
           dailyChangeRate: latestHistory.dailyChangeRate,
         };
       }
@@ -145,23 +145,23 @@ async function fetchFromLocalJson(): Promise<MarketValuationData | null> {
 const FUND_CODE_REGEX = /^\d+$/;
 
 /**
- * 统一基金搜索：自动检测关键词类型
- * - 纯数字：按基金代码搜索（前缀匹配）
- * - 其他：按基金名称搜索（模糊匹配）
+ * 统一基金搜索
+ * @param keyword 搜索关键词
+ * @param mode 搜索模式：'auto' 自动检测（默认），'code' 按代码前缀，'name' 按名称模糊
  */
-export async function searchFunds(keyword: string): Promise<FundSearchResult[]> {
+export async function searchFunds(keyword: string, mode: 'auto' | 'code' | 'name' = 'auto'): Promise<FundSearchResult[]> {
   if (!keyword || keyword.trim().length < 2) return [];
   try {
     const trimmed = keyword.trim();
     const apiResults = await searchFromEastMoney(trimmed);
-    
-    if (FUND_CODE_REGEX.test(trimmed)) {
-      // 按代码搜索：前缀匹配
+
+    const searchByCode = mode === 'code' || (mode === 'auto' && FUND_CODE_REGEX.test(trimmed));
+
+    if (searchByCode) {
       return apiResults.filter(f =>
         f.code.toLowerCase().startsWith(trimmed.toLowerCase())
       ).slice(0, 10);
     } else {
-      // 按名称搜索：模糊匹配
       return apiResults.filter(f =>
         f.name.toLowerCase().includes(trimmed.toLowerCase())
       ).slice(0, 10);
@@ -172,17 +172,17 @@ export async function searchFunds(keyword: string): Promise<FundSearchResult[]> 
 }
 
 /**
- * @deprecated 使用 searchFunds 替代
+ * @deprecated 使用 searchFunds(code, 'code') 替代
  */
 export async function searchByCode(code: string): Promise<FundSearchResult[]> {
-  return searchFunds(code);
+  return searchFunds(code, 'code');
 }
 
 /**
- * @deprecated 使用 searchFunds 替代
+ * @deprecated 使用 searchFunds(name, 'name') 替代
  */
 export async function searchByName(name: string): Promise<FundSearchResult[]> {
-  return searchFunds(name);
+  return searchFunds(name, 'name');
 }
 
 async function searchFromEastMoney(keyword: string): Promise<FundSearchResult[]> {
@@ -195,7 +195,7 @@ async function searchFromEastMoney(keyword: string): Promise<FundSearchResult[]>
       body: { keyword },
     });
     if (error) throw error;
-    return data || [];
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('东方财富搜索失败:', error);
     return [];
@@ -384,8 +384,15 @@ async function fetchFundHistoryBatch(fundCode: string, days: number): Promise<Fu
     pageIndex++;
   }
 
-  allData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  return allData.slice(-days);
+  // 按日期去重（保留后出现的记录，即更新的数据）
+  const deduped = new Map<string, FundHistoryData>();
+  for (const item of allData) {
+    deduped.set(item.date, item);
+  }
+  const sorted = Array.from(deduped.values()).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  return sorted.slice(-days);
 }
 
 export function clearNavCache(): void {

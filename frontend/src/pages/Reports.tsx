@@ -1,7 +1,8 @@
 import React from 'react';
 import { SpinLoading, Empty, Button, Toast } from 'antd-mobile';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { useHoldings, exportData, importData } from '../hooks/useSync';
+import { useHoldings } from '../hooks/useSync';
+import { exportDatabase, importDatabase } from '../db';
 import { UploadOutline, DownlandOutline } from 'antd-mobile-icons';
 import './Layout.css';
 
@@ -12,10 +13,14 @@ const Reports: React.FC = () => {
 
   // 按分类统计
   const categoryData = React.useMemo(() => {
+    const getCategory = (name: string) => {
+      const match = name.match(/^(.+?(?:ETF|LOF|指数|债券|货币|混合|股票))/);
+      return match ? match[1] : name;
+    };
     const map = new Map<string, number>();
     holdings.forEach(h => {
-      const current = map.get(h.fundName.split('ETF')[0] + 'ETF') || 0;
-      map.set(h.fundName.split('ETF')[0] + 'ETF', current + (h.currentValue || 0));
+      const category = getCategory(h.fundName);
+      map.set(category, (map.get(category) || 0) + (h.currentValue || 0));
     });
     return Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
@@ -41,12 +46,12 @@ const Reports: React.FC = () => {
 
   const handleExport = async () => {
     try {
-      const data = await exportData();
+      const data = await exportDatabase();
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `fund-data-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `fund-data-${new Date().toLocaleDateString('sv-SE')}.json`;
       a.click();
       URL.revokeObjectURL(url);
       Toast.show({ icon: 'success', content: '导出成功' });
@@ -61,7 +66,7 @@ const Reports: React.FC = () => {
 
     try {
       const text = await file.text();
-      await importData(text);
+      await importDatabase(text);
       Toast.show({ icon: 'success', content: '导入成功' });
       window.location.reload();
     } catch (error) {

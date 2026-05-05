@@ -88,7 +88,7 @@ function parseCSVLine(line: string): string[] {
 }
 
 // 格式化日期为 YYYY-MM-DD 格式（避免时区问题）
-function formatLocalDate(date: Date): string {
+export function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -184,18 +184,25 @@ export function importTransactionsFromCSV(csvText: string): Omit<Transaction, 'i
       throw new Error(`第 ${rowNumber} 行: 金额、价格、份额必须为有效数字`);
     }
 
+    const txDate = String(row['日期']).trim();
+    const today = formatLocalDate(new Date());
+    const isPending = txDate > today;
+
     transactions.push({
       fundId: String(row['基金代码']).trim(),
       fundCode: String(row['基金代码']).trim(),
       fundName: String(row['基金名称']).trim(),
       type,
-      date: String(row['日期']).trim(),
-      amount,
-      price,
-      shares,
+      date: txDate,
+      // 在途买入：保留金额（份额待净值确认后由 processPendingTransactions 计算）
+      // 在途卖出：保留份额（金额待确认）
+      // 在途 price 统一设为 0（确认时由 processPendingTransactions 填入实际净值）
+      amount: isPending && type === 'sell' ? 0 : amount,
+      price: isPending ? 0 : price,
+      shares: isPending && type === 'buy' ? 0 : shares,
       fee,
       remark: row['备注'] ? String(row['备注']).trim() : undefined,
-      status: 'completed',
+      status: isPending ? 'pending' : 'completed',
     });
   }
 

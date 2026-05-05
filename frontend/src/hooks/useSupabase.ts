@@ -41,5 +41,5 @@ export function useAuthStatus() {
 export async function signOut() {
   localStorage.removeItem('myfundsys_auth');
   localStorage.removeItem('myfundsys_auth_time');
-  window.location.href = '/login';
+  window.location.href = '/';
 }

@@ -115,6 +115,7 @@ const FundList: React.FC = () => {
               setCodeSearchText(val);
               setNameSearchText(''); // 清空另一边的搜索
               setNameSearchResults([]);
+              setIsNameSearching(false);
             }}
             style={{ '--background': '#f5f5f5' }}
           />

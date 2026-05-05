@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Card, List, Button, Toast, Dialog } from 'antd-mobile';
 import { exportDatabase, importDatabase, resetDatabase } from '../db';
-import { useTransactions } from '../hooks/useSync';
-import { exportHoldingsToCSV, exportTransactionsToCSV, importTransactionsFromCSV } from '../utils/csv';
+import { useTransactions, useHoldings } from '../hooks/useSync';
+import { exportHoldingsToCSV, exportTransactionsToCSV, importTransactionsFromCSV, formatLocalDate } from '../utils/csv';
 import { addTransactionWithHoldingUpdate } from '../services/navUpdateService';
 import './Layout.css';
 
@@ -11,6 +11,7 @@ const Settings: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [csvImporting, setCsvImporting] = useState(false);
   const { transactions, refresh } = useTransactions();
+  const { holdings } = useHoldings();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,7 +39,7 @@ const Settings: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `myfundsys-backup-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `myfundsys-backup-${formatLocalDate(new Date())}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

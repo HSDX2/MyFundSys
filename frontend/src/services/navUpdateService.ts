@@ -5,7 +5,8 @@
  */
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { fetchFundNav } from './fundApi';
+import { fetchFundNav, fetchFundHistory } from './fundApi';
+import { formatLocalDate } from '../utils/csv';
 import type { Holding, Transaction } from '../types';
 
 // ============================================
@@ -106,6 +107,7 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
     remainingShares: tx.shares,
     cost: tx.price,
     date: tx.date,
+    isPending: false,
   }));
 
   const realizedLots: RealizedLot[] = [];
@@ -432,7 +434,7 @@ export async function addTransactionWithHoldingUpdate(
   }
 
   return {
-    transactionId: data.id,
+    transactionId: (data as any).id,
     holdingUpdated: transaction.status === 'completed',
   };
 }
@@ -442,12 +444,13 @@ export async function removeTransactionWithHoldingUpdate(
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  const { data: transaction } = await supabase
+  const { data: txData } = await supabase
     .from('transactions')
     .select('*')
     .eq('id', transactionId)
     .limit(1)
     .maybeSingle();
+  const transaction = txData as any;
 
   if (!transaction) return;
 
@@ -468,21 +471,26 @@ export async function removeHoldingWithTransactions(holdingId: string, fundCode?
   // 如果提供了 fundCode，直接使用；否则从 holdings 表查询（向后兼容）
   let targetFundCode = fundCode;
   if (!targetFundCode) {
-    const { data: holding } = await supabase
+    const { data: holdingData } = await supabase
       .from('holdings')
       .select('fund_code')
       .eq('id', holdingId)
       .limit(1)
       .maybeSingle();
+    const holding = holdingData as any;
 
     if (!holding) return;
     targetFundCode = holding.fund_code;
   }
 
+  if (!targetFundCode) return;
+
   // 删除该基金的所有交易记录
-  await supabase.from('transactions').delete().eq('fund_code', targetFundCode);
+  const { error: txError } = await supabase.from('transactions').delete().eq('fund_code', targetFundCode);
+  if (txError) throw new Error(`删除交易记录失败: ${txError.message}`);
   // 删除 holdings 表中的对应记录（兼容性）
-  await supabase.from('holdings').delete().eq('id', holdingId);
+  const { error: holdingError } = await supabase.from('holdings').delete().eq('id', holdingId);
+  if (holdingError) throw new Error(`删除持仓记录失败: ${holdingError.message}`);
 }
 
 // ============================================
@@ -511,10 +519,11 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
       return { processedCount: 0, pendingCount: 0, errors: [] };
     }
 
-  const { data: pendingTransactions } = await supabase
+  const { data: pendingTxData } = await supabase
     .from('transactions')
     .select('*')
     .eq('status', 'pending');
+  const pendingTransactions = pendingTxData as any[] | null;
 
   if (!pendingTransactions || pendingTransactions.length === 0) {
     return { processedCount: 0, pendingCount: 0, errors: [] };
@@ -522,17 +531,45 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
 
   console.log(`[Pending] 发现 ${pendingTransactions.length} 笔在途交易`);
 
-  const fundCodes = [...new Set(pendingTransactions.map((t: any) => t.fund_code))];
+  // 按基金分组，一次性获取历史净值（减少 Edge Function 调用次数）
+  const fundGroups = new Map<string, { confirmDates: string[] }>();
+  for (const tx of pendingTransactions) {
+    const code = tx.fund_code;
+    const confirmDate = tx.confirm_date || tx.date;
+    if (!fundGroups.has(code)) fundGroups.set(code, { confirmDates: [] });
+    fundGroups.get(code)!.confirmDates.push(confirmDate);
+  }
+
   const navCache = new Map<string, { nav: number; navDate: string }>();
 
-  for (const code of fundCodes) {
+  for (const [code, group] of fundGroups) {
     try {
-      const navData = await fetchFundNav(code);
-      if (navData && navData.nav > 0) {
-        navCache.set(code, {
-          nav: navData.nav,
-          navDate: navData.navDate || new Date().toISOString().split('T')[0],
-        });
+      const sortedDates = [...new Set(group.confirmDates)].sort();
+      const earliest = sortedDates[0];
+      const today = formatLocalDate(new Date());
+      // 一次性获取从最早确认日到今天的历史净值
+      const history = await fetchFundHistory(code, 100, 1, earliest, today);
+
+      for (const confirmDate of sortedDates) {
+        const cacheKey = `${code}_${confirmDate}`;
+        const match = history.find(h => h.date === confirmDate && h.nav > 0);
+        if (match) {
+          navCache.set(cacheKey, { nav: match.nav, navDate: match.date });
+        }
+      }
+
+      // 无匹配的确认日降级到最新净值
+      const unmatched = sortedDates.filter(d => !navCache.has(`${code}_${d}`));
+      if (unmatched.length > 0) {
+        const navData = await fetchFundNav(code);
+        if (navData && navData.nav > 0) {
+          for (const d of unmatched) {
+            navCache.set(`${code}_${d}`, {
+              nav: navData.nav,
+              navDate: navData.navDate || today,
+            });
+          }
+        }
       }
     } catch (error) {
       console.error(`[Pending] 获取净值失败 ${code}:`, error);
@@ -544,30 +581,29 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
 
   for (const transaction of pendingTransactions) {
     try {
-      const navInfo = navCache.get(transaction.fund_code);
+      const confirmDate = transaction.confirm_date || transaction.date;
+      const cacheKey = `${transaction.fund_code}_${confirmDate}`;
+      const navInfo = navCache.get(cacheKey);
       if (!navInfo) {
         errors.push(`${transaction.fund_code}: 无法获取净值`);
         continue;
       }
 
-      const confirmDate = transaction.confirm_date || transaction.date;
-
-      const confirmDateObj = new Date(confirmDate);
-      const navDateObj = new Date(navInfo.navDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      if (navInfo.navDate >= confirmDate) {
-        // 正常处理
-      } else if (confirmDateObj < today) {
-        const daysSinceNav = Math.floor((today.getTime() - navDateObj.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysSinceNav > 5) {
-          console.log(`[Pending] 净值过旧，等待中: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值日: ${navInfo.navDate}`);
+
+      if (navInfo.navDate < confirmDate) {
+        const confirmDateObj = new Date(confirmDate);
+        if (confirmDateObj < today) {
+          const daysSinceConfirm = Math.floor((today.getTime() - confirmDateObj.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSinceConfirm > 5) {
+            console.log(`[Pending] 净值过旧，等待中: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值日: ${navInfo.navDate}`);
+            continue;
+          }
+        } else {
+          console.log(`[Pending] 净值未更新，等待中: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值日: ${navInfo.navDate}`);
           continue;
         }
-      } else {
-        console.log(`[Pending] 净值未更新，等待中: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值日: ${navInfo.navDate}`);
-        continue;
       }
 
       const tradePrice = navInfo.nav;
@@ -582,7 +618,7 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
         amount = shares * tradePrice;
       }
 
-      const { error: updateError } = await supabase.from('transactions').update({
+      const { error: updateError } = await (supabase.from('transactions') as any).update({
         nav: tradePrice,
         shares,
         amount,
