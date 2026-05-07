@@ -22,8 +22,8 @@
 - **云端同步** — Supabase PostgreSQL，手机/电脑多设备同步
 - **市场估值** — PE/PB 估值温度计，每 2 小时自动更新
 - **基金搜索与详情** — 按代码/名称搜索，历史净值走势图（MACD/KDJ 技术指标）
-- **策略回测** — 自定义规则，权益曲线，夏普比率，最大回撤
-- **CSV/JSON 导入导出** — 完整数据备份和批量操作
+- 🎯 **网格交易策略** — 定义网格参数、执行交易、追踪网格级盈亏
+- 📤 **CSV/JSON 导入导出** — 完整数据备份和批量操作
 - **移动端优先** — 响应式设计，Ant Design Mobile 组件库
 
 ## 系统架构
@@ -95,7 +95,7 @@ npm install
 cp .env.example .env.local
 
 # 3. 运行测试
-npm test                    # 111 个测试，Vitest 框架
+npm test                    # 131 个测试，Vitest 框架
 npm run test:e2e            # Playwright E2E 测试
 
 # 4. 构建
@@ -132,6 +132,8 @@ npm run test:e2e                    # Playwright E2E
 | `holdings` | 持仓记录（兼容性保留，实际从 transactions 派生） |
 | `favorite_funds` | 自选基金 |
 | `fund_cache` | 搜索缓存 |
+| `grid_strategies` | 网格交易策略配置 |
+| `grid_executions` | 网格交易执行记录 |
 
 RLS 已启用，策略为 ALLOW ALL（单用户模式）。
 

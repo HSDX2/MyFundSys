@@ -22,8 +22,8 @@ Most fund tracking apps show you a single average cost per fund. MyFundSys track
 - **Cloud sync** — Supabase PostgreSQL, multi-device sync
 - **Market valuation** — PE/PB temperature gauge, auto-updated every 2 hours
 - **Fund search & detail** — search by code/name, historical NAV charts with MACD/KDJ
-- **Strategy backtest** — custom rules, equity curve, Sharpe ratio, max drawdown
-- **CSV/JSON import/export** — full data backup and batch operations
+- 🎯 **Grid Trading** — define grid parameters, execute trades, track grid-level P&L
+- 📤 **CSV/JSON import/export** — full data backup and batch operations
 - **Mobile-first UI** — responsive design with Ant Design Mobile
 
 ## Architecture
@@ -95,7 +95,7 @@ npm install
 cp .env.example .env.local
 
 # 3. Run tests
-npm test                    # 111 tests, Vitest
+npm test                    # 131 tests, Vitest
 npm run test:e2e            # Playwright E2E
 
 # 4. Build
@@ -132,6 +132,8 @@ npm run test:e2e                    # Playwright E2E
 | `holdings` | Positions (compatibility, derived from transactions) |
 | `favorite_funds` | Watchlist |
 | `fund_cache` | Search cache |
+| `grid_strategies` | Grid trading strategy configurations |
+| `grid_executions` | Grid trade execution records |
 
 RLS enabled with ALLOW ALL policy (single-user mode).
 
