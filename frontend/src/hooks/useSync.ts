@@ -67,8 +67,7 @@ export function useSyncStatus() {
         lastSyncTime: new Date(),
         pendingChanges: 0,
       }));
-    } catch (error) {
-      console.error('同步失败:', error);
+    } catch {
       setStatus(s => ({ ...s, isSyncing: false }));
     }
   }, []);
@@ -267,8 +266,7 @@ export function useStrategies() {
       const raw = localStorage.getItem('customStrategies');
       const customStrategies = raw ? JSON.parse(raw) : [];
       setStrategies(Array.isArray(customStrategies) ? customStrategies : []);
-    } catch (e) {
-      console.warn('解析自定义策略失败:', e);
+    } catch {
       setStrategies([]);
     } finally {
       setLoading(false);

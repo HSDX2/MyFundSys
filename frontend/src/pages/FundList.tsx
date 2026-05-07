@@ -23,8 +23,8 @@ const FundList: React.FC = () => {
         try {
           const results = await searchByCode(codeSearchText.trim());
           setCodeSearchResults(results);
-        } catch (error) {
-          console.error('搜索失败:', error);
+        } catch {
+          // 静默忽略搜索错误
         } finally {
           setIsCodeSearching(false);
         }
@@ -44,8 +44,8 @@ const FundList: React.FC = () => {
         try {
           const results = await searchByName(nameSearchText.trim());
           setNameSearchResults(results);
-        } catch (error) {
-          console.error('搜索失败:', error);
+        } catch {
+          // 静默忽略搜索错误
         } finally {
           setIsNameSearching(false);
         }

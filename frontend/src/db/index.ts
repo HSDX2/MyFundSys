@@ -36,14 +36,13 @@ export async function resetDatabase(): Promise<void> {
   for (const table of tables) {
     const { data, error: fetchError } = await supabase.from(table).select('id');
     if (fetchError) {
-      console.warn(`获取表 ${table} 数据失败:`, fetchError.message);
       continue;
     }
     if (data && data.length > 0) {
       const ids = data.map((row: any) => row.id);
       const { error: deleteError } = await supabase.from(table).delete().in('id', ids);
       if (deleteError) {
-        console.warn(`清空表 ${table} 失败:`, deleteError.message);
+        // 静默忽略删除错误，继续处理下一个表
       }
     }
   }

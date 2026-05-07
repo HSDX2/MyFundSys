@@ -193,15 +193,13 @@ export async function fetchAllDataFromSupabase() {
       supabase.from('transactions').select('*'),
     ]);
 
-    if (holdingsRes.error) console.warn('获取持仓数据失败:', holdingsRes.error.message);
-    if (transactionsRes.error) console.warn('获取交易数据失败:', transactionsRes.error.message);
+    // 查询错误已在返回结果中体现，由调用方处理
 
     const holdings = (holdingsRes.data as DbHolding[] || []).map(fromDbHolding);
     const transactions = (transactionsRes.data as DbTransaction[] || []).map(fromDbTransaction);
 
     return { holdings, transactions };
-  } catch (error) {
-    console.error('获取数据失败:', error);
+  } catch {
     return { holdings: [], transactions: [] };
   }
 }

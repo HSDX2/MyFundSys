@@ -98,9 +98,8 @@ const Settings: React.FC = () => {
         try {
           await addTransactionWithHoldingUpdate(tx);
           successCount++;
-        } catch (err) {
+        } catch {
           failCount++;
-          console.error(`导入交易失败: ${tx.fundCode} ${tx.date}`, err);
         }
       }
 

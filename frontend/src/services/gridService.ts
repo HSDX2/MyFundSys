@@ -74,7 +74,6 @@ export async function fetchGridStrategies(): Promise<GridStrategy[]> {
     .order('fund_code');
 
   if (error) {
-    console.error('fetchGridStrategies error:', error);
     return [];
   }
 

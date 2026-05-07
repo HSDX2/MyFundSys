@@ -72,7 +72,6 @@ export function useGridStrategies() {
       setOverviews(overviewList);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败';
-      console.error('加载网格策略失败:', err);
       setError(msg);
       setOverviews([]);
     } finally {
@@ -145,8 +144,8 @@ export function useGridDetail(fundCode: string) {
       // 4. 推导网格状态
       const levels = deriveGridStatuses(strat, executions, nav);
       setLevelsByType(levels);
-    } catch (err) {
-      console.error('加载网格详情失败:', err);
+    } catch {
+      // 静默忽略加载错误
     } finally {
       setLoading(false);
     }

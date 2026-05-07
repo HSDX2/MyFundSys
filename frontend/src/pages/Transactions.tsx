@@ -97,8 +97,8 @@ const Transactions: React.FC = () => {
         try {
           const results = await searchByCode(codeSearchText.trim());
           setCodeSearchResults(results);
-        } catch (error) {
-          console.error('搜索失败:', error);
+        } catch {
+          // 静默忽略搜索错误
         } finally {
           setIsCodeSearching(false);
         }
@@ -142,8 +142,8 @@ const Transactions: React.FC = () => {
           if (navData) {
             setCurrentNav(navData.nav);
           }
-        } catch (error) {
-          console.error('获取净值失败:', error);
+        } catch {
+          // 静默忽略净值获取错误
         }
       }
     };
@@ -197,9 +197,8 @@ const Transactions: React.FC = () => {
             setSelectedDateNav(null);
           }
         }
-      } catch (error) {
+      } catch {
         if (cancelled) return;
-        console.error('获取历史净值失败:', error);
         setIsPendingNav(true);
         setSelectedDateNav(null);
       } finally {
@@ -361,8 +360,8 @@ const Transactions: React.FC = () => {
                 }
               }
             }
-          } catch (error) {
-            console.error('获取历史净值失败:', error);
+          } catch {
+            // 静默忽略历史净值获取错误
           }
         }
       }
@@ -419,8 +418,7 @@ const Transactions: React.FC = () => {
       setCurrentTradeType('buy');
       await refresh();
       await refreshHoldings();
-    } catch (error) {
-      console.error('Add transaction error:', error);
+    } catch {
       Toast.show({ content: '添加失败', position: 'bottom' });
     }
   };

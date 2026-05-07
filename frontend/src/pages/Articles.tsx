@@ -23,8 +23,7 @@ const Articles: React.FC = () => {
       const data = await loadLocalArticles();
       setArticles(data);
       setFilteredArticles(data);
-    } catch (error) {
-      console.error('加载文章失败:', error);
+    } catch {
       Toast.show({ content: '加载文章失败', position: 'bottom' });
     } finally {
       setLoading(false);

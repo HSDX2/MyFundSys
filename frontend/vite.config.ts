@@ -13,8 +13,10 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ['react', 'react-dom'],
           ui: ['antd-mobile', 'antd-mobile-icons'],
+          charts: ['recharts'],
+          supabase: ['@supabase/supabase-js'],
         }
       }
     }

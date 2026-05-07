@@ -613,8 +613,6 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
     return { processedCount: 0, pendingCount: 0, errors: [] };
   }
 
-  console.log(`[Pending] 发现 ${pendingTransactions.length} 笔在途交易`);
-
   // 按基金分组，一次性获取历史净值（减少 Edge Function 调用次数）
   const fundGroups = new Map<string, { confirmDates: string[] }>();
   for (const tx of pendingTransactions) {
@@ -655,8 +653,8 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
           }
         }
       }
-    } catch (error) {
-      console.error(`[Pending] 获取净值失败 ${code}:`, error);
+    } catch {
+      // 静默忽略单只基金净值获取失败，继续处理其他基金
     }
   }
 
@@ -681,11 +679,9 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
         if (confirmDateObj < today) {
           const daysSinceConfirm = Math.floor((today.getTime() - confirmDateObj.getTime()) / (1000 * 60 * 60 * 24));
           if (daysSinceConfirm > 5) {
-            console.log(`[Pending] 净值过旧，等待中: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值日: ${navInfo.navDate}`);
             continue;
           }
         } else {
-          console.log(`[Pending] 净值未更新，等待中: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值日: ${navInfo.navDate}`);
           continue;
         }
       }
@@ -714,11 +710,9 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
       }
 
       processedCount++;
-      console.log(`[Pending] 处理完成: ${transaction.fund_code}, 确认日: ${confirmDate}, 净值: ${tradePrice}`);
     } catch (error) {
       const msg = `${transaction.fund_code}: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(msg);
-      console.error(`[Pending] 处理失败 ${transaction.fund_code}:`, error);
     }
   }
 

@@ -21,8 +21,7 @@ export async function fetchFundNav(fundCode: string): Promise<FundApiData | null
       return data;
     }
     return null;
-  } catch (error) {
-    console.error('获取基金净值失败:', error);
+  } catch {
     return null;
   }
 }
@@ -74,8 +73,7 @@ async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null>
       };
     }
     return null;
-  } catch (error) {
-    console.error(`获取基金净值失败 ${fundCode}:`, error);
+  } catch {
     return null;
   }
 }
@@ -100,8 +98,7 @@ export async function fetchMarketValuation(): Promise<MarketValuationData> {
     }
 
     throw new Error('无法获取估值数据');
-  } catch (error) {
-    console.error('获取市场估值失败:', error);
+  } catch {
     return {
       date: new Date().toISOString().split('T')[0],
       pe: 16.0,
@@ -109,7 +106,7 @@ export async function fetchMarketValuation(): Promise<MarketValuationData> {
       percentile: 0.30,
       temperature: 30,
       source: 'error',
-      error: error instanceof Error ? error.message : '数据获取失败',
+      error: '数据获取失败',
     } as MarketValuationData;
   }
 }
@@ -132,8 +129,7 @@ async function fetchFromLocalJson(): Promise<MarketValuationData | null> {
       };
     }
     return null;
-  } catch (error) {
-    console.error('读取本地估值文件失败:', error);
+  } catch {
     return null;
   }
 }
@@ -196,8 +192,7 @@ async function searchFromEastMoney(keyword: string): Promise<FundSearchResult[]>
     });
     if (error) throw error;
     return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('东方财富搜索失败:', error);
+  } catch {
     return [];
   }
 }
@@ -316,8 +311,7 @@ export async function fetchFundHistory(
     });
     if (!error && data) return data;
     return [];
-  } catch (error) {
-    console.error(`获取历史净值失败 ${fundCode}:`, error);
+  } catch {
     return [];
   }
 }
@@ -351,8 +345,7 @@ export async function getFundHistoryWithCache(
     const result = apiData.map(item => ({ date: item.date, nav: item.nav }));
     historyCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
-  } catch (error) {
-    console.error(`获取历史缓存失败 ${fundCode}:`, error);
+  } catch {
     return [];
   }
 }

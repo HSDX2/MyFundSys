@@ -62,8 +62,8 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
       
       setFavorites(listWithNav);
       loadHistoryData(listWithNav);
-    } catch (error) {
-      console.error('加载收藏失败:', error);
+    } catch {
+      // 静默忽略加载错误
     } finally {
       setLoading(false);
     }
@@ -81,8 +81,8 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
         ...fund,
         historyData: historyMap[fund.fund_code] || []
       })));
-    } catch (error) {
-      console.error('加载历史数据失败:', error);
+    } catch {
+      // 静默忽略历史数据加载错误
     } finally {
       setLoadingHistory(false);
     }

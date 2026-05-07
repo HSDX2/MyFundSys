@@ -21,8 +21,7 @@ export async function fetchAITweets(): Promise<TwitterResponse> {
     // 如果 Supabase 未配置，返回空数据
     return { data: [] };
 
-  } catch (error) {
-    console.error('获取推文失败:', error);
+  } catch {
     return { data: [], error: 'Failed to fetch tweets' };
   }
 }

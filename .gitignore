@@ -73,3 +73,13 @@ coverage/
 # Cache
 .cache/
 *.tsbuildinfo
+
+# Supabase CLI temp files
+supabase/.temp/
+
+# Build artifacts
+frontend/vite.config.js
+frontend/head
+
+# Claude Code
+.claude/

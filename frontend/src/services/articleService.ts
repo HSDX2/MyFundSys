@@ -41,8 +41,7 @@ function parseArticleMarkdown(content: string, filename: string): Article | null
       content: body.substring(0, 2000), // 限制内容长度
       tags,
     };
-  } catch (error) {
-    console.error('解析文章失败:', error);
+  } catch {
     return null;
   }
 }
