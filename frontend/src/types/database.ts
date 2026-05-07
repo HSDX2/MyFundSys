@@ -20,6 +20,8 @@ export interface Database {
           date: string;
           confirm_date: string | null;
           status: 'pending' | 'completed';
+          source: string;
+          grid_execution_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -35,6 +37,8 @@ export interface Database {
           date: string;
           confirm_date?: string | null;
           status?: 'pending' | 'completed';
+          source?: string;
+          grid_execution_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -87,6 +91,68 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['favorite_funds']['Insert']>;
+      };
+      grid_strategies: {
+        Row: {
+          id: string;
+          fund_code: string;
+          fund_name: string;
+          peak_price: number;
+          bottom_price: number;
+          grid_config: Record<string, unknown>;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          fund_code: string;
+          fund_name: string;
+          peak_price: number;
+          bottom_price: number;
+          grid_config: Record<string, unknown>;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['grid_strategies']['Insert']>;
+      };
+      grid_executions: {
+        Row: {
+          id: string;
+          strategy_id: string;
+          fund_code: string;
+          grid_type: 'small' | 'medium' | 'large';
+          grid_level: number;
+          action: 'buy' | 'sell';
+          status: 'pending' | 'executed' | 'cancelled';
+          transaction_id: string | null;
+          executed_nav: number | null;
+          executed_amount: number | null;
+          executed_shares: number | null;
+          remaining_shares: number | null;
+          executed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          strategy_id: string;
+          fund_code: string;
+          grid_type: 'small' | 'medium' | 'large';
+          grid_level: number;
+          action: 'buy' | 'sell';
+          status?: 'pending' | 'executed' | 'cancelled';
+          transaction_id?: string | null;
+          executed_nav?: number | null;
+          executed_amount?: number | null;
+          executed_shares?: number | null;
+          remaining_shares?: number | null;
+          executed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['grid_executions']['Insert']>;
       };
     };
   };

@@ -14,6 +14,7 @@ import FundDetail from './FundDetail';
 import Holdings from './Holdings';
 import Transactions from './Transactions';
 import Strategy from './Strategy';
+import GridDetail from './GridDetail';
 import Settings from './Settings';
 import AuthPage from './AuthPage';
 import { useSyncStatus } from '../hooks/useSync';
@@ -36,6 +37,9 @@ const Layout: React.FC = () => {
       if (hash.startsWith('fund/')) {
         const fundCode = hash.replace('fund/', '');
         setCurrentView({ type: 'fundDetail', params: { fundCode } });
+      } else if (hash.startsWith('grid/')) {
+        const fundCode = hash.replace('grid/', '');
+        setCurrentView({ type: 'gridDetail', params: { fundCode } });
       } else if (hash === 'holdings' || hash.startsWith('holdings?')) {
         setActiveKey('holdings');
         setCurrentView({ type: 'tab' });
@@ -114,6 +118,9 @@ const Layout: React.FC = () => {
   const renderContent = () => {
     if (currentView.type === 'fundDetail') {
       return <FundDetail key={currentView.params.fundCode} />;
+    }
+    if (currentView.type === 'gridDetail') {
+      return <GridDetail fundCode={currentView.params.fundCode} onBack={() => { window.location.hash = 'strategy'; }} />;
     }
     return activeTab?.component;
   };

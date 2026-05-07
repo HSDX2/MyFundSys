@@ -23,6 +23,7 @@ export interface Lot {
   date: string;            // 买入日期
   isPending: boolean;      // 是否在途（净值未确认）
   amount?: number;         // 在途买入金额（仅 isPending=true 时有值）
+  gridExecutionId?: string; // 关联网格执行记录（网格交易精确匹配）
 }
 
 export interface RealizedLot {
@@ -65,20 +66,39 @@ export function deriveLots(transactions: Transaction[]): Lot[] {
     date: tx.date,
     isPending: tx.status === 'pending',
     amount: tx.status === 'pending' ? tx.amount : undefined,
+    gridExecutionId: tx.gridExecutionId,
   }));
 
-  // 按成本升序匹配卖出（先卖成本最低的，跳过在途批次）
+  // 匹配卖出：优先按 gridExecutionId 精确匹配，fallback 按成本升序
   for (const sell of sellTxs) {
     let remainingToSell = sell.shares;
-    const fundLots = lots
-      .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending)
-      .sort((a, b) => a.cost - b.cost);
 
-    for (const lot of fundLots) {
-      if (remainingToSell <= 0) break;
-      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-      lot.remainingShares -= sellFromLot;
-      remainingToSell -= sellFromLot;
+    // 1. 优先精确匹配：如果 sell 指定了 gridExecutionId，只卖该 lot
+    if (sell.gridExecutionId) {
+      const targetLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending && l.gridExecutionId === sell.gridExecutionId)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of targetLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
+    }
+
+    // 2. Fallback：剩余部分按成本升序匹配（手动交易或无 gridExecutionId 的场景）
+    if (remainingToSell > 0) {
+      const fundLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of fundLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
     }
   }
 
@@ -108,18 +128,58 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
     cost: tx.price,
     date: tx.date,
     isPending: false,
+    gridExecutionId: tx.gridExecutionId,
   }));
 
   const realizedLots: RealizedLot[] = [];
 
   for (const sell of sellTxs) {
     let remainingToSell = sell.shares;
-    const fundLots = lots
-      .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
-      .sort((a, b) => a.cost - b.cost);
 
-    for (const lot of fundLots) {
-      if (remainingToSell <= 0) break;
+    // 优先精确匹配
+    if (sell.gridExecutionId) {
+      const targetLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && l.gridExecutionId === sell.gridExecutionId)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of targetLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+
+        const cost = sellFromLot * lot.cost;
+        const revenue = sellFromLot * sell.price;
+        const profit = revenue - cost;
+        const profitRate = cost > 0 ? (profit / cost) * 100 : 0;
+        const holdingDays = Math.round((new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24));
+
+        realizedLots.push({
+          id: lot.id,
+          fundCode: lot.fundCode,
+          fundName: lot.fundName,
+          buyDate: lot.date,
+          sellDate: sell.date,
+          shares: sellFromLot,
+          buyNav: lot.cost,
+          sellNav: sell.price,
+          cost,
+          revenue,
+          profit,
+          profitRate,
+          holdingDays,
+        });
+      }
+    }
+
+    // Fallback
+    if (remainingToSell > 0) {
+      const fundLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of fundLots) {
+        if (remainingToSell <= 0) break;
       const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
       lot.remainingShares -= sellFromLot;
 
@@ -149,6 +209,7 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
       });
     }
   }
+}
 
   // 按卖出日期倒序
   return realizedLots.sort((a, b) => b.sellDate.localeCompare(a.sellDate));
@@ -208,23 +269,45 @@ export interface SellMatchResult {
 export function matchSellLots(
   lots: Lot[],
   fundCode: string,
-  sellShares: number
+  sellShares: number,
+  gridExecutionId?: string
 ): SellMatchResult {
   // 使用副本避免修改输入数组
-  const fundLots = lots
+  let fundLots = lots
     .filter(l => l.fundCode === fundCode && l.remainingShares > 0)
-    .map(l => ({ ...l }))
-    .sort((a, b) => a.cost - b.cost);
+    .map(l => ({ ...l }));
 
   let remainingToSell = sellShares;
   const lotsUsed: SellMatchResult['lotsUsed'] = [];
 
-  for (const lot of fundLots) {
-    if (remainingToSell <= 0) break;
-    const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-    lotsUsed.push({ lotId: lot.id, shares: sellFromLot, cost: lot.cost });
-    lot.remainingShares -= sellFromLot;
-    remainingToSell -= sellFromLot;
+  // 1. 优先精确匹配
+  if (gridExecutionId) {
+    const targetLots = fundLots
+      .filter(l => l.gridExecutionId === gridExecutionId)
+      .sort((a, b) => a.cost - b.cost);
+
+    for (const lot of targetLots) {
+      if (remainingToSell <= 0) break;
+      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+      lotsUsed.push({ lotId: lot.id, shares: sellFromLot, cost: lot.cost });
+      lot.remainingShares -= sellFromLot;
+      remainingToSell -= sellFromLot;
+    }
+  }
+
+  // 2. Fallback
+  if (remainingToSell > 0) {
+    const fallbackLots = fundLots
+      .filter(l => l.remainingShares > 0)
+      .sort((a, b) => a.cost - b.cost);
+
+    for (const lot of fallbackLots) {
+      if (remainingToSell <= 0) break;
+      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+      lotsUsed.push({ lotId: lot.id, shares: sellFromLot, cost: lot.cost });
+      lot.remainingShares -= sellFromLot;
+      remainingToSell -= sellFromLot;
+    }
   }
 
   return { lotsUsed, remainingShares: remainingToSell };
@@ -417,6 +500,7 @@ export async function addTransactionWithHoldingUpdate(
     date: transaction.date,
     confirm_date: transaction.confirmDate || null,
     status: transaction.status || 'completed',
+    source: transaction.source || 'manual',
   };
 
   const { data, error } = await supabase
@@ -643,8 +727,8 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
     pendingCount: pendingTransactions.length - processedCount,
     errors,
   };
-  } finally {
-    // 处理完成后重置标记，允许下次调用
-    (window as any).__pendingTransactionsProcessing = false;
-  }
+} finally {
+  // 处理完成后重置标记，允许下次调用
+  (window as any).__pendingTransactionsProcessing = false;
+}
 }

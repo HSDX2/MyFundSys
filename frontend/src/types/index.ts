@@ -45,6 +45,8 @@ export interface Transaction {
   fee?: number;  // 手续费
   remark?: string;  // 备注
   status?: 'pending' | 'completed';  // 交易状态：pending=在途等待净值，completed=已完成
+  source?: 'manual' | 'grid';  // 来源：手动交易 / 网格触发
+  gridExecutionId?: string;  // 关联 grid_executions.id（网格交易精确匹配）
   createdAt: string;
 }
 
@@ -164,4 +166,86 @@ export interface Tweet {
     like_count: number;
     reply_count: number;
   };
+}
+
+// ============================================
+// 网格交易策略类型定义
+// ============================================
+
+export type GridType = 'small' | 'medium' | 'large';
+
+export const GRID_TYPES: GridType[] = ['small', 'medium', 'large'];
+
+export const GridTypeLabels: Record<GridType, string> = {
+  small: '小网',
+  medium: '中网',
+  large: '大网',
+};
+
+export interface GridLevel {
+  level: number;
+  trigger_price: number;
+  investment: number;
+  cumulative: number;
+  sell_price: number;
+  profit: number;
+  profit_retention_pct: number;
+}
+
+export interface GridTypeConfig {
+  label: string;
+  spacing_pct: number;
+  grid_count: number;
+  base_investment: number;
+  increment_pct: number;
+  profit_rules: number[];
+  grids: GridLevel[];
+}
+
+export interface GridStrategy {
+  id: string;
+  fund_code: string;
+  fund_name: string;
+  peak_price: number;
+  bottom_price: number;
+  grid_config: Record<GridType, GridTypeConfig>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GridExecution {
+  id: string;
+  strategy_id: string;
+  fund_code: string;
+  grid_type: GridType;
+  grid_level: number;
+  action: 'buy' | 'sell';
+  status: 'pending' | 'executed' | 'cancelled';
+  transaction_id?: string;
+  executed_nav?: number;
+  executed_amount?: number;
+  executed_shares?: number;
+  remaining_shares?: number;  // 买入后剩余份额（留利润底仓）
+  executed_at?: string;
+}
+
+export type GridLevelStatus = 'triggered' | 'executed' | 'above' | 'sell_triggered';
+
+export interface GridLevelWithStatus extends GridLevel {
+  status: GridLevelStatus;
+  execution?: GridExecution;      // 买入执行记录
+  sellExecution?: GridExecution;  // 卖出执行记录
+  distance_pct: number;
+}
+
+export interface GridFundOverview {
+  strategy: GridStrategy;
+  current_nav: number;
+  nearest_trigger: { price: number; distance_pct: number; grid_type: GridType; level: number };
+  total_budget: number;
+  capital_deployed: number;
+  executed_count: number;
+  total_grid_count: number;
+  triggered_pending_count: number;
 }

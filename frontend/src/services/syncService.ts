@@ -45,6 +45,7 @@ interface DbTransaction {
   date: string;
   confirm_date?: string;
   status: 'pending' | 'completed';
+  source?: string;
   created_at: string;
   updated_at: string;
 }
@@ -102,6 +103,7 @@ function toDbTransaction(tx: Transaction): Omit<DbTransaction, 'id' | 'created_a
     date: tx.date,
     confirm_date: tx.confirmDate || tx.date,
     status: tx.status || 'completed',
+    source: tx.source || 'manual',
   };
 }
 
@@ -122,6 +124,7 @@ function fromDbTransaction(db: DbTransaction): Transaction {
     shares: db.shares,
     fee: db.fee,
     status: db.status,
+    source: (db.source as 'manual' | 'grid') || 'manual',
     createdAt: db.created_at,
   };
 }

@@ -1,0 +1,2873 @@
+[
+  {
+    "fund_code": "002978",
+    "fund_name": "全指医药",
+    "peak_price": 1.4102,
+    "bottom_price": 0.4231,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4231,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.4527,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.4527,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.4844,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.4844,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.5183,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.5183,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.5546,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.5546,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.5934,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.5934,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.635,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.635,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.6794,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.6794,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.727,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.727,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.7779,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.7779,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.8323,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.8323,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 0.8906,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 0.8906,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 0.9529,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4231,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.4866,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.4866,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.5595,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5595,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.6435,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.6435,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.74,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.74,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.851,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.851,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 0.9787,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4231,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.55,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.55,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.715,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.715,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 0.9296,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.9296,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.2084,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "003766",
+    "fund_name": "创业板指",
+    "peak_price": 2.0135,
+    "bottom_price": 0.604,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.604,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.6463,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.6463,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.6915,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.6915,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.7399,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.7399,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.7917,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.7917,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.8471,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.8471,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.9064,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.9064,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.9699,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.9699,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 1.0378,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 1.0378,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 1.1104,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 1.1104,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 1.1882,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 1.1882,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 1.2713,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 1.2713,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 1.3603,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.604,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.6946,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.6946,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.7988,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.7988,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.9186,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.9186,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 1.0564,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 1.0564,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 1.2149,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 1.2149,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 1.3971,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.604,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.7852,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.7852,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 1.0208,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 1.0208,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 1.327,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 1.327,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.7251,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "006381",
+    "fund_name": "恒生指数",
+    "peak_price": 1.6474,
+    "bottom_price": 0.4942,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4942,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.5288,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5288,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.5658,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5658,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.6054,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.6054,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.6478,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.6478,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.6931,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.6931,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.7417,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.7417,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.7936,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.7936,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.8491,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.8491,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.9086,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.9086,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.9722,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.9722,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 1.0402,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 1.0402,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 1.113,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4942,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.5683,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5683,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.6536,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.6536,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.7516,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.7516,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.8644,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.8644,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.994,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.994,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 1.1431,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4942,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.6425,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.6425,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.8352,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.8352,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 1.0858,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 1.0858,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.4115,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "012349",
+    "fund_name": "恒生科技",
+    "peak_price": 1.0149,
+    "bottom_price": 0.3045,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.3045,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.3258,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.3258,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.3486,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.3486,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.373,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.373,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.3991,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.3991,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.4271,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.4271,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.457,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.457,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.489,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.489,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.5232,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.5232,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.5598,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.5598,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.599,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.599,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 0.6409,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 0.6409,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 0.6858,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.3045,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.3502,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.3502,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.4027,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.4027,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.4631,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.4631,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.5326,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.5326,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.6125,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.6125,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 0.7043,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.3045,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.3958,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.3958,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.5146,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5146,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 0.669,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.669,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 0.8697,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "002987",
+    "fund_name": "沪深300",
+    "peak_price": 2.7137,
+    "bottom_price": 0.8141,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.8141,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.8711,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.8711,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.9321,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.9321,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.9973,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.9973,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 1.0671,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 1.0671,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 1.1418,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 1.1418,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 1.2217,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 1.2217,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 1.3073,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 1.3073,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 1.3988,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 1.3988,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 1.4967,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 1.4967,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 1.6015,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 1.6015,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 1.7136,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 1.7136,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 1.8335,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.8141,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.9362,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.9362,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 1.0766,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 1.0766,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 1.2381,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 1.2381,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 1.4239,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 1.4239,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 1.6374,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 1.6374,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 1.8831,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.8141,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 1.0583,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 1.0583,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 1.3758,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 1.3758,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 1.7886,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 1.7886,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 2.3252,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "002903",
+    "fund_name": "中证500",
+    "peak_price": 1.5987,
+    "bottom_price": 0.4796,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4796,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.5132,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5132,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.5491,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5491,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.5875,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.5875,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.6287,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.6287,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.6727,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.6727,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.7198,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.7198,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.7701,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.7701,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.824,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.824,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.8817,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.8817,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.9434,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.9434,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 1.0095,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 1.0095,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 1.0802,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4796,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.5515,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5515,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.6343,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.6343,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.7294,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.7294,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.8388,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.8388,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.9646,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.9646,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 1.1093,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4796,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.6235,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.6235,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.8105,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.8105,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 1.0537,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 1.0537,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.3698,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "009052",
+    "fund_name": "中证红利",
+    "peak_price": 1.3416,
+    "bottom_price": 0.4025,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4025,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.4307,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.4307,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.4608,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.4608,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.4931,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.4931,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.5276,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.5276,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.5645,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.5645,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.604,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.604,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.6463,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.6463,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.6916,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.6916,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.74,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.74,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.7918,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.7918,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 0.8472,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 0.8472,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 0.9065,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4025,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.4629,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.4629,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.5323,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5323,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.6122,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.6122,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.704,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.704,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.8096,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.8096,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 0.931,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4025,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.5233,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5233,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.6802,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.6802,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 0.8843,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.8843,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.1496,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "008591",
+    "fund_name": "证券公司",
+    "peak_price": 1.4734,
+    "bottom_price": 0.442,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.442,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.4729,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.4729,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.506,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.506,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.5415,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.5415,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.5794,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.5794,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.6199,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.6199,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.6633,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.6633,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.7098,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.7098,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.7594,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.7594,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.8126,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.8126,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.8695,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.8695,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 0.9303,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 0.9303,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 0.9955,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.442,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.5083,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5083,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.5845,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5845,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.6722,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.6722,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.7731,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.7731,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.889,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.889,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 1.0224,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.442,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.5746,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5746,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.747,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.747,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 0.9711,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.9711,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.2624,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "002974",
+    "fund_name": "中证信息",
+    "peak_price": 1.8245,
+    "bottom_price": 0.5474,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.5474,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.5857,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.5857,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.6267,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.6267,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.6706,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.6706,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.7175,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.7175,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.7678,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.7678,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.8215,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.8215,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.879,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.879,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.9405,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.9405,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 1.0064,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 1.0064,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 1.0768,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 1.0768,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 1.1522,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 1.1522,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 1.2328,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.5474,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.6295,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.6295,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.7239,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.7239,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.8325,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.8325,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.9574,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.9574,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 1.101,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 1.101,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 1.2662,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.5474,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.7116,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.7116,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.9251,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.9251,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 1.2026,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 1.2026,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.5634,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "002984",
+    "fund_name": "中证环保",
+    "peak_price": 1.3769,
+    "bottom_price": 0.4131,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4131,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.442,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.442,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.473,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.473,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.5061,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.5061,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.5415,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.5415,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.5794,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.5794,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.62,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.62,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.6633,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.6633,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.7098,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.7098,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.7595,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.7595,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.8126,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.8126,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 0.8695,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 0.8695,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 0.9304,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4131,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.4751,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.4751,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.5463,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5463,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.6283,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.6283,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.7225,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.7225,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.8309,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.8309,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 0.9555,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.4131,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.537,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.537,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.6981,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.6981,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 0.9076,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.9076,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.1799,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  },
+  {
+    "fund_code": "004753",
+    "fund_name": "中证传媒",
+    "peak_price": 1.2615,
+    "bottom_price": 0.3785,
+    "grid_config": {
+      "small": {
+        "label": "小网",
+        "spacing_pct": 0.07,
+        "grid_count": 12,
+        "base_investment": 2318,
+        "increment_pct": 0.1001,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.33,
+          0.29,
+          0.25,
+          0.22,
+          0.18,
+          0.15,
+          0.11,
+          0.07,
+          0.04,
+          0.0
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.3785,
+            "investment": 2318,
+            "cumulative": 2318,
+            "sell_price": 0.405,
+            "profit": 162,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.405,
+            "investment": 2550,
+            "cumulative": 4868,
+            "sell_price": 0.4333,
+            "profit": 179,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.4333,
+            "investment": 2805,
+            "cumulative": 7673,
+            "sell_price": 0.4637,
+            "profit": 196,
+            "profit_retention_pct": 0.33
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.4637,
+            "investment": 3085,
+            "cumulative": 10758,
+            "sell_price": 0.4961,
+            "profit": 216,
+            "profit_retention_pct": 0.29
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.4961,
+            "investment": 3394,
+            "cumulative": 14152,
+            "sell_price": 0.5309,
+            "profit": 238,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.5309,
+            "investment": 3733,
+            "cumulative": 17885,
+            "sell_price": 0.568,
+            "profit": 261,
+            "profit_retention_pct": 0.22
+          },
+          {
+            "level": 7,
+            "trigger_price": 0.568,
+            "investment": 4106,
+            "cumulative": 21991,
+            "sell_price": 0.6078,
+            "profit": 287,
+            "profit_retention_pct": 0.18
+          },
+          {
+            "level": 8,
+            "trigger_price": 0.6078,
+            "investment": 4517,
+            "cumulative": 26508,
+            "sell_price": 0.6503,
+            "profit": 316,
+            "profit_retention_pct": 0.15
+          },
+          {
+            "level": 9,
+            "trigger_price": 0.6503,
+            "investment": 4969,
+            "cumulative": 31477,
+            "sell_price": 0.6959,
+            "profit": 348,
+            "profit_retention_pct": 0.11
+          },
+          {
+            "level": 10,
+            "trigger_price": 0.6959,
+            "investment": 5466,
+            "cumulative": 36943,
+            "sell_price": 0.7446,
+            "profit": 383,
+            "profit_retention_pct": 0.07
+          },
+          {
+            "level": 11,
+            "trigger_price": 0.7446,
+            "investment": 6012,
+            "cumulative": 42955,
+            "sell_price": 0.7967,
+            "profit": 421,
+            "profit_retention_pct": 0.04
+          },
+          {
+            "level": 12,
+            "trigger_price": 0.7967,
+            "investment": 6614,
+            "cumulative": 49569,
+            "sell_price": 0.8525,
+            "profit": 463,
+            "profit_retention_pct": 0.0
+          }
+        ]
+      },
+      "medium": {
+        "label": "中网",
+        "spacing_pct": 0.15,
+        "grid_count": 6,
+        "base_investment": 3644,
+        "increment_pct": 0.0499,
+        "profit_rules": [
+          0.4,
+          0.36,
+          0.32,
+          0.28,
+          0.24,
+          0.2
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.3785,
+            "investment": 3644,
+            "cumulative": 3644,
+            "sell_price": 0.4353,
+            "profit": 547,
+            "profit_retention_pct": 0.4
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.4353,
+            "investment": 3826,
+            "cumulative": 7470,
+            "sell_price": 0.5006,
+            "profit": 574,
+            "profit_retention_pct": 0.36
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.5006,
+            "investment": 4018,
+            "cumulative": 11488,
+            "sell_price": 0.5757,
+            "profit": 603,
+            "profit_retention_pct": 0.32
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.5757,
+            "investment": 4218,
+            "cumulative": 15706,
+            "sell_price": 0.662,
+            "profit": 633,
+            "profit_retention_pct": 0.28
+          },
+          {
+            "level": 5,
+            "trigger_price": 0.662,
+            "investment": 4429,
+            "cumulative": 20135,
+            "sell_price": 0.7613,
+            "profit": 664,
+            "profit_retention_pct": 0.24
+          },
+          {
+            "level": 6,
+            "trigger_price": 0.7613,
+            "investment": 4651,
+            "cumulative": 24786,
+            "sell_price": 0.8755,
+            "profit": 698,
+            "profit_retention_pct": 0.2
+          }
+        ]
+      },
+      "large": {
+        "label": "大网",
+        "spacing_pct": 0.3,
+        "grid_count": 4,
+        "base_investment": 3562,
+        "increment_pct": 0.0999,
+        "profit_rules": [
+          0.3,
+          0.25,
+          0.2,
+          0.15
+        ],
+        "grids": [
+          {
+            "level": 1,
+            "trigger_price": 0.3785,
+            "investment": 3562,
+            "cumulative": 3562,
+            "sell_price": 0.492,
+            "profit": 1069,
+            "profit_retention_pct": 0.3
+          },
+          {
+            "level": 2,
+            "trigger_price": 0.492,
+            "investment": 3918,
+            "cumulative": 7480,
+            "sell_price": 0.6397,
+            "profit": 1175,
+            "profit_retention_pct": 0.25
+          },
+          {
+            "level": 3,
+            "trigger_price": 0.6397,
+            "investment": 4310,
+            "cumulative": 11790,
+            "sell_price": 0.8316,
+            "profit": 1293,
+            "profit_retention_pct": 0.2
+          },
+          {
+            "level": 4,
+            "trigger_price": 0.8316,
+            "investment": 4741,
+            "cumulative": 16531,
+            "sell_price": 1.081,
+            "profit": 1422,
+            "profit_retention_pct": 0.15
+          }
+        ]
+      }
+    }
+  }
+]

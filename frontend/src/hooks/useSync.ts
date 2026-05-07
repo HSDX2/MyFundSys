@@ -94,6 +94,7 @@ function mapTransaction(t: any): Transaction {
     shares: t.shares,
     fee: t.fee,
     status: t.status,
+    source: t.source || 'manual',
     createdAt: t.created_at,
   };
 }
@@ -189,6 +190,7 @@ export function useTransactions() {
       fee: transaction.fee || 0,
       date: transaction.date,
       status: transaction.status || 'completed',
+      source: transaction.source || 'manual',
     };
     const { data } = await supabase.from('transactions').insert(payload as any).select();
     return (data as any)?.[0]?.id;
