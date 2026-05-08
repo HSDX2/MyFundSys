@@ -95,7 +95,7 @@ npm install
 cp .env.example .env.local
 
 # 3. 运行测试
-npm test                    # 131 个测试，Vitest 框架
+npm test                    # 474 个测试，Vitest 框架
 npm run test:e2e            # Playwright E2E 测试
 
 # 4. 构建

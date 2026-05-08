@@ -95,7 +95,7 @@ npm install
 cp .env.example .env.local
 
 # 3. Run tests
-npm test                    # 131 tests, Vitest
+npm test                    # 474 tests, Vitest
 npm run test:e2e            # Playwright E2E
 
 # 4. Build
