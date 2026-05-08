@@ -9,7 +9,7 @@ const ARTICLE_SOURCES = [
 ];
 
 // 解析Markdown文章内容
-function parseArticleMarkdown(content: string, filename: string): Article | null {
+export function parseArticleMarkdown(content: string, filename: string): Article | null {
   try {
     // 解析 frontmatter
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
@@ -19,11 +19,11 @@ function parseArticleMarkdown(content: string, filename: string): Article | null
     const body = frontmatterMatch[2].trim();
 
     // 解析 frontmatter 字段
-    const title = frontmatter.match(/title:\s*(.+)/)?.[1] || '';
-    const date = frontmatter.match(/date:\s*(.+)/)?.[1] || '';
-    const url = frontmatter.match(/url:\s*(.+)/)?.[1] || '';
-    const source = frontmatter.match(/source:\s*(.+)/)?.[1] || '';
-    const category = frontmatter.match(/category:\s*(.+)/)?.[1] || '';
+    const title = frontmatter.match(/title:[ \t]*([^\n]*)/)?.[1]?.trim() || '';
+    const date = frontmatter.match(/date:[ \t]*([^\n]*)/)?.[1]?.trim() || '';
+    const url = frontmatter.match(/url:[ \t]*([^\n]*)/)?.[1]?.trim() || '';
+    const source = frontmatter.match(/source:[ \t]*([^\n]*)/)?.[1]?.trim() || '';
+    const category = frontmatter.match(/category:[ \t]*([^\n]*)/)?.[1]?.trim() || '';
 
     // 生成ID
     const id = `article_${filename.replace(/\.md$/, '')}_${Date.now()}`;
@@ -47,7 +47,7 @@ function parseArticleMarkdown(content: string, filename: string): Article | null
 }
 
 // 从内容中提取标签
-function extractTags(content: string): string[] {
+export function extractTags(content: string): string[] {
   const tags: string[] = [];
   
   // 关键词映射

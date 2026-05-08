@@ -115,7 +115,7 @@ export async function runBacktest(params: BacktestParams): Promise<BacktestResul
 }
 
 // 评估策略条件
-async function evaluateRule(condition: string, data: { date: string; price: number; pe?: number; pb?: number }): Promise<boolean> {
+export async function evaluateRule(condition: string, data: { date: string; price: number; pe?: number; pb?: number }): Promise<boolean> {
   // 估值百分位条件（基于真实数据中的 PE/PB）
   if (condition.includes('percentile')) {
     const match = condition.match(/(\d+)/);
@@ -153,7 +153,7 @@ async function evaluateRule(condition: string, data: { date: string; price: numb
 }
 
 // 计算最大回撤
-function calculateMaxDrawdown(equityCurve: { date: string; value: number }[]): number {
+export function calculateMaxDrawdown(equityCurve: { date: string; value: number }[]): number {
   let maxDrawdown = 0;
   let peak = equityCurve[0]?.value || 0;
 
@@ -171,7 +171,7 @@ function calculateMaxDrawdown(equityCurve: { date: string; value: number }[]): n
 }
 
 // 计算夏普比率（简化版）
-function calculateSharpeRatio(equityCurve: { date: string; value: number }[]): number {
+export function calculateSharpeRatio(equityCurve: { date: string; value: number }[]): number {
   if (equityCurve.length < 2) return 0;
 
   const returns: number[] = [];
