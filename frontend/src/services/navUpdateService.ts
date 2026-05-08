@@ -420,9 +420,14 @@ export function updateLocalHoldingAfterTransaction(
     ? holding.shares + transaction.shares
     : holding.shares - transaction.shares;
 
-  const newTotalCost = transaction.type === 'buy'
+  let newTotalCost = transaction.type === 'buy'
     ? holding.totalCost + transaction.amount
     : holding.totalCost - transaction.amount;
+
+  if (newTotalCost < 0) {
+    console.warn(`总成本为负: ${holding.fundCode}, totalCost=${holding.totalCost}, amount=${transaction.amount}, 已钳制为 0`);
+    newTotalCost = 0;
+  }
 
   if (newShares <= 0) {
     return { holding: null, shouldDelete: true };

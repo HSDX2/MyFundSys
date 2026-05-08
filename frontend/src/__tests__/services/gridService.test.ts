@@ -705,12 +705,10 @@ describe('gridService', () => {
       expect(result[1].fund_code).toBe('000002');
     });
 
-    it('查询失败返回空数组', async () => {
+    it('查询失败时抛出错误', async () => {
       mockSelectResult.mockResolvedValue({ data: null, error: new Error('DB Error') });
 
-      const result = await fetchGridStrategies();
-
-      expect(result).toEqual([]);
+      await expect(fetchGridStrategies()).rejects.toThrow('获取网格策略失败');
     });
   });
 
@@ -759,12 +757,10 @@ describe('gridService', () => {
       expect(result!.peak_price).toBe(2.0);
     });
 
-    it('创建失败返回 null', async () => {
+    it('创建失败时抛出错误', async () => {
       mockInsertResult.mockResolvedValue({ data: null, error: new Error('DB Error') });
 
-      const result = await createGridStrategy(baseStrategy);
-
-      expect(result).toBeNull();
+      await expect(createGridStrategy(baseStrategy)).rejects.toThrow('创建网格策略失败');
     });
   });
 
@@ -816,12 +812,10 @@ describe('gridService', () => {
       expect(result!.fund_code).toBe('000001');
     });
 
-    it('查询失败返回 null', async () => {
+    it('查询失败时抛出错误', async () => {
       mockSelectResult.mockResolvedValue({ data: null, error: new Error('DB Error') });
 
-      const result = await fetchGridStrategyByFund('000001');
-
-      expect(result).toBeNull();
+      await expect(fetchGridStrategyByFund('000001')).rejects.toThrow('获取网格策略失败');
     });
 
     it('未找到策略返回 null', async () => {
@@ -872,12 +866,10 @@ describe('gridService', () => {
       expect(result[0].remaining_shares).toBe(2083.33);
     });
 
-    it('查询失败返回空数组', async () => {
+    it('查询失败时抛出错误', async () => {
       mockSelectResult.mockResolvedValue({ data: null, error: new Error('DB Error') });
 
-      const result = await fetchGridExecutions('000001');
-
-      expect(result).toEqual([]);
+      await expect(fetchGridExecutions('000001')).rejects.toThrow('获取网格执行记录失败');
     });
   });
 
@@ -905,12 +897,10 @@ describe('gridService', () => {
       expect(result[1].fund_code).toBe('000002');
     });
 
-    it('查询失败返回空数组', async () => {
+    it('查询失败时抛出错误', async () => {
       mockSelectResult.mockResolvedValue({ data: null, error: new Error('DB Error') });
 
-      const result = await fetchAllGridExecutions();
-
-      expect(result).toEqual([]);
+      await expect(fetchAllGridExecutions()).rejects.toThrow('获取网格执行记录失败');
     });
   });
 

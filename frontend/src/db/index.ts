@@ -68,19 +68,45 @@ export async function exportDatabase(): Promise<string> {
   return JSON.stringify(data, null, 2);
 }
 
+function validateImportData(data: unknown): { holdings: unknown[]; transactions: unknown[] } {
+  if (!data || typeof data !== 'object') {
+    throw new Error('导入数据格式无效：应为 JSON 对象');
+  }
+  const obj = data as Record<string, unknown>;
+  const holdings = Array.isArray(obj.holdings) ? obj.holdings : [];
+  const transactions = Array.isArray(obj.transactions) ? obj.transactions : [];
+  if (holdings.length === 0 && transactions.length === 0) {
+    throw new Error('导入数据为空');
+  }
+  if (holdings.length > 10000 || transactions.length > 100000) {
+    throw new Error('导入数据量超限');
+  }
+  // 拒绝原型污染键
+  const poisonKeys = ['__proto__', 'constructor', 'prototype'];
+  function hasPoison(obj: unknown): boolean {
+    if (!obj || typeof obj !== 'object') return false;
+    return Object.keys(obj as object).some(k => poisonKeys.includes(k));
+  }
+  if (holdings.some(hasPoison) || transactions.some(hasPoison)) {
+    throw new Error('导入数据包含非法键');
+  }
+  return { holdings, transactions };
+}
+
 export async function importDatabase(jsonString: string): Promise<void> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase 未配置');
   }
 
   const data = JSON.parse(jsonString);
+  const { holdings, transactions } = validateImportData(data);
 
-  if (data.holdings?.length) {
+  if (holdings.length) {
     await supabase.from('holdings').delete().neq('id', '');
-    await supabase.from('holdings').insert(data.holdings);
+    await supabase.from('holdings').insert(holdings as any);
   }
-  if (data.transactions?.length) {
+  if (transactions.length) {
     await supabase.from('transactions').delete().neq('id', '');
-    await supabase.from('transactions').insert(data.transactions);
+    await supabase.from('transactions').insert(transactions as any);
   }
 }

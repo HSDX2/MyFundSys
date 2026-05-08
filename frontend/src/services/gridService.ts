@@ -74,7 +74,7 @@ export async function fetchGridStrategies(): Promise<GridStrategy[]> {
     .order('fund_code');
 
   if (error) {
-    return [];
+    throw new Error(`获取网格策略失败: ${error.message}`);
   }
 
   return (data || []).map(mapDbGridStrategy);
@@ -89,8 +89,11 @@ export async function fetchGridStrategyByFund(fundCode: string): Promise<GridStr
     .eq('fund_code', fundCode)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    throw new Error(`获取网格策略失败: ${error.message}`);
+  }
 
+  if (!data) return null;
   return mapDbGridStrategy(data);
 }
 
@@ -113,7 +116,7 @@ export async function createGridStrategy(
     .single();
 
   if (error) {
-    return null;
+    throw new Error(`创建网格策略失败: ${error.message}`);
   }
 
   return mapDbGridStrategy(data);
@@ -140,7 +143,7 @@ export async function fetchGridExecutions(fundCode: string): Promise<GridExecuti
     .order('created_at');
 
   if (error) {
-    return [];
+    throw new Error(`获取网格执行记录失败: ${error.message}`);
   }
 
   return (data || []).map(mapDbGridExecution);
@@ -155,7 +158,7 @@ export async function fetchAllGridExecutions(): Promise<GridExecution[]> {
     .order('created_at');
 
   if (error) {
-    return [];
+    throw new Error(`获取网格执行记录失败: ${error.message}`);
   }
 
   return (data || []).map(mapDbGridExecution);

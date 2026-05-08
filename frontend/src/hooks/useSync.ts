@@ -26,6 +26,7 @@ export interface SyncStatus {
   isSyncing: boolean;
   lastSync: Date | null;
   lastSyncTime: Date | null;
+  lastSyncError: string | null;
   pendingChanges: number;
 }
 
@@ -36,6 +37,7 @@ export function useSyncStatus() {
     isSyncing: false,
     lastSync: null,
     lastSyncTime: null,
+    lastSyncError: null,
     pendingChanges: 0,
   });
 
@@ -59,16 +61,19 @@ export function useSyncStatus() {
     
     try {
       await supabase.from('transactions').select('*');
-      
-      setStatus(s => ({ 
-        ...s, 
+
+      setStatus(s => ({
+        ...s,
         isSyncing: false,
         lastSync: new Date(),
         lastSyncTime: new Date(),
+        lastSyncError: null,
         pendingChanges: 0,
       }));
-    } catch {
-      setStatus(s => ({ ...s, isSyncing: false }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '同步失败';
+      console.error('Sync failed:', err);
+      setStatus(s => ({ ...s, isSyncing: false, lastSyncError: msg }));
     }
   }, []);
 
@@ -267,8 +272,16 @@ export function useStrategies() {
       const raw = localStorage.getItem('customStrategies');
       const customStrategies = raw ? JSON.parse(raw) : [];
       setStrategies(Array.isArray(customStrategies) ? customStrategies : []);
-    } catch {
+    } catch (err) {
+      console.error('加载本地策略失败:', err);
+      localStorage.removeItem('customStrategies');
       setStrategies([]);
+      // 延迟 Toast 避免初始化时渲染问题
+      setTimeout(() => {
+        import('antd-mobile').then(({ Toast }) => {
+          Toast.show({ content: '本地策略数据已损坏，已自动重置', position: 'bottom' });
+        });
+      }, 500);
     } finally {
       setLoading(false);
     }
