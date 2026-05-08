@@ -473,6 +473,16 @@ describe('gridService', () => {
       expect(overview.nearest_trigger.grid_type).toBe('small');
       expect(overview.nearest_trigger.level).toBe(1);
     });
+
+    it('nearest_trigger 选择距离最近的未执行网格（后面的网格更远时不更新）', () => {
+      const strategy = createStrategy();
+      // current=0.52, small level1 distance=4%, level2 distance=5.45%
+      // level1 先遍历且更近，level2 虽然也是未执行但更远，不应更新 nearest
+      const overview = computeFundOverview(strategy, [], 0.52);
+
+      expect(overview.nearest_trigger.grid_type).toBe('small');
+      expect(overview.nearest_trigger.level).toBe(1);
+    });
   });
 
   // ============================================
@@ -539,6 +549,33 @@ describe('gridService', () => {
   // batchImportGridStrategies
   // ============================================
   describe('batchImportGridStrategies', () => {
+    afterEach(() => {
+      // Restore default mockFrom implementation so downstream tests aren't affected
+      mockFrom.mockImplementation(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: mockSelectResult,
+            order: mockSelectResult,
+          })),
+          or: vi.fn(() => ({
+            order: mockSelectResult,
+          })),
+          order: mockSelectResult,
+        })),
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: mockInsertResult,
+          })),
+        })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve(mockUpdateResult())),
+        })),
+        delete: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve(mockDeleteResult())),
+        })),
+      }));
+    });
+
     const importItem = {
       fund_code: '000001',
       fund_name: '测试基金',
@@ -589,6 +626,37 @@ describe('gridService', () => {
 
       expect(result.success).toBe(0);
       expect(result.errors[0]).toContain('更新失败');
+    });
+
+    it('创建新策略时 insert 返回 error', async () => {
+      mockSelectResult.mockResolvedValue({ data: null, error: null });
+      (mockFrom as any).mockImplementation(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: mockSelectResult,
+            order: mockSelectResult,
+          })),
+          or: vi.fn(() => ({ order: mockSelectResult })),
+          order: mockSelectResult,
+        })),
+        insert: vi.fn(() => Promise.resolve({ error: new Error('Insert failed') })),
+        update: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve(mockUpdateResult())) })),
+        delete: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve(mockDeleteResult())) })),
+      }));
+
+      const result = await batchImportGridStrategies([importItem]);
+
+      expect(result.success).toBe(0);
+      expect(result.errors[0]).toContain('创建失败');
+    });
+
+    it('抛出非 Error 对象时记录未知错误', async () => {
+      mockSelectResult.mockRejectedValue('string error');
+
+      const result = await batchImportGridStrategies([importItem]);
+
+      expect(result.success).toBe(0);
+      expect(result.errors[0]).toContain('未知错误');
     });
 
   });

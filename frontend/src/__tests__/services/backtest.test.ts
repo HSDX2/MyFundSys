@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { runBacktest } from '../../services/backtest';
+import {
+  runBacktest,
+  evaluateRule,
+  calculateMaxDrawdown,
+  calculateSharpeRatio,
+  buildPriceDataFromHistory,
+} from '../../services/backtest';
 import type { Strategy } from '../../types';
 
 describe('backtest', () => {
@@ -163,6 +169,228 @@ describe('backtest', () => {
           priceData: [],
         })
       ).rejects.toThrow('没有可用的历史数据');
+    });
+
+    it('估值条件触发交易', async () => {
+      // 使用 pe=20 → currentPercentile=0.5, percentile < 60 为 true
+      const strategy: Strategy = {
+        ...mockStrategy,
+        rules: [{ condition: 'percentile < 60', action: 'buy', params: { ratio: 0.5 } }],
+      };
+      const priceData = [
+        { date: '2024-01-01', price: 1.0, pe: 20 },
+        { date: '2024-01-02', price: 1.0, pe: 20 },
+      ];
+      const result = await runBacktest({
+        strategy,
+        fundCode: '000001',
+        startDate: '2024-01-01',
+        endDate: '2024-01-02',
+        initialCapital: 10000,
+        priceData,
+      });
+      expect(result.trades).toBeGreaterThan(0);
+    });
+
+    it('高估时触发卖出', async () => {
+      const highPeData = [
+        { date: '2024-01-01', price: 1.0, pe: 30 },
+        { date: '2024-01-02', price: 1.0, pe: 30 },
+      ];
+      const buyFirstStrategy: Strategy = {
+        ...mockStrategy,
+        rules: [
+          { condition: 'percentile < 20', action: 'buy', params: { ratio: 1 } },
+          { condition: 'percentile > 80', action: 'sell', params: { ratio: 1 } },
+        ],
+      };
+      await runBacktest({
+        strategy: buyFirstStrategy,
+        fundCode: '000001',
+        startDate: '2024-01-01',
+        endDate: '2024-01-01',
+        initialCapital: 10000,
+        priceData: [{ date: '2024-01-01', price: 1.0, pe: 10 }],
+      });
+      const result = await runBacktest({
+        strategy: buyFirstStrategy,
+        fundCode: '000001',
+        startDate: '2024-01-02',
+        endDate: '2024-01-02',
+        initialCapital: 10000,
+        priceData: [{ date: '2024-01-02', price: 1.5, pe: 30 }],
+      });
+      expect(result.trades).toBeGreaterThanOrEqual(0);
+    });
+
+    it('无规则时不交易', async () => {
+      const priceData = createTestPriceData(1.0, 5);
+      const result = await runBacktest({
+        strategy: { ...mockStrategy, rules: [] },
+        fundCode: '000001',
+        startDate: '2024-01-01',
+        endDate: '2024-01-05',
+        initialCapital: 10000,
+        priceData,
+      });
+      expect(result.trades).toBe(0);
+    });
+
+    it('买入后高价触发卖出', async () => {
+      const buySellStrategy: Strategy = {
+        ...mockStrategy,
+        rules: [
+          { condition: 'percentile < 60', action: 'buy', params: { ratio: 1 } },
+          { condition: 'percentile > 40', action: 'sell', params: { ratio: 1 } },
+        ],
+      };
+      const priceData = [
+        { date: '2024-01-01', price: 1.0, pe: 20 },
+        { date: '2024-01-02', price: 1.5, pe: 20 },
+      ];
+      const result = await runBacktest({
+        strategy: buySellStrategy,
+        fundCode: '000001',
+        startDate: '2024-01-01',
+        endDate: '2024-01-02',
+        initialCapital: 10000,
+        priceData,
+      });
+      expect(result.trades).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('evaluateRule', () => {
+    it('percentile < 条件，低于阈值时返回true', async () => {
+      // pe=20 → currentPercentile=0.5, 0.5 < 0.6 = true
+      const result = await evaluateRule('percentile < 60', { date: '2024-01-01', price: 1.0, pe: 20 });
+      expect(result).toBe(true);
+    });
+
+    it('percentile < 条件，高于阈值时返回false', async () => {
+      // pe=20 → currentPercentile=0.5, 0.5 < 0.4 = false
+      const result = await evaluateRule('percentile < 40', { date: '2024-01-01', price: 1.0, pe: 20 });
+      expect(result).toBe(false);
+    });
+
+    it('percentile > 条件，高于阈值时返回true', async () => {
+      // pe=20 → currentPercentile=0.5, 0.5 > 0.4 = true
+      const result = await evaluateRule('percentile > 40', { date: '2024-01-01', price: 1.0, pe: 20 });
+      expect(result).toBe(true);
+    });
+
+    it('monthly条件，每月1日返回true', async () => {
+      const result = await evaluateRule('monthly', { date: '2024-01-01', price: 1.0 });
+      expect(result).toBe(true);
+    });
+
+    it('monthly条件，非1日返回false', async () => {
+      const result = await evaluateRule('monthly', { date: '2024-01-02', price: 1.0 });
+      expect(result).toBe(false);
+    });
+
+    it('未知条件返回false', async () => {
+      const result = await evaluateRule('unknown condition', { date: '2024-01-01', price: 1.0 });
+      expect(result).toBe(false);
+    });
+
+    it('无PE/PB数据时使用默认值0.5', async () => {
+      const resultLt = await evaluateRule('percentile < 60', { date: '2024-01-01', price: 1.0 });
+      expect(resultLt).toBe(true);
+      const resultGt = await evaluateRule('percentile > 60', { date: '2024-01-01', price: 1.0 });
+      expect(resultGt).toBe(false);
+    });
+
+    it('使用PB作为PE的备选', async () => {
+      // pb=2.0 → currentPercentile=0.5, 0.5 < 0.6 = true
+      const result = await evaluateRule('percentile < 60', { date: '2024-01-01', price: 1.0, pb: 2.0 });
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('calculateMaxDrawdown', () => {
+    it('上升曲线无回撤返回0', () => {
+      const curve = [
+        { date: '2024-01-01', value: 100 },
+        { date: '2024-01-02', value: 110 },
+        { date: '2024-01-03', value: 120 },
+      ];
+      expect(calculateMaxDrawdown(curve)).toBe(0);
+    });
+
+    it('单次回撤正确计算', () => {
+      const curve = [
+        { date: '2024-01-01', value: 100 },
+        { date: '2024-01-02', value: 120 },
+        { date: '2024-01-03', value: 90 },
+      ];
+      expect(calculateMaxDrawdown(curve)).toBeCloseTo(0.25, 4);
+    });
+
+    it('多次回撤取最大值', () => {
+      const curve = [
+        { date: '2024-01-01', value: 100 },
+        { date: '2024-01-02', value: 120 },
+        { date: '2024-01-03', value: 90 },
+        { date: '2024-01-04', value: 130 },
+        { date: '2024-01-05', value: 80 },
+      ];
+      expect(calculateMaxDrawdown(curve)).toBeCloseTo(0.3846, 3);
+    });
+  });
+
+  describe('calculateSharpeRatio', () => {
+    it('单点数据返回0', () => {
+      expect(calculateSharpeRatio([{ date: '2024-01-01', value: 100 }])).toBe(0);
+    });
+
+    it('无波动返回0', () => {
+      const curve = [
+        { date: '2024-01-01', value: 100 },
+        { date: '2024-01-02', value: 100 },
+        { date: '2024-01-03', value: 100 },
+      ];
+      expect(calculateSharpeRatio(curve)).toBe(0);
+    });
+
+    it('正收益返回正值', () => {
+      const curve = [
+        { date: '2024-01-01', value: 100 },
+        { date: '2024-01-02', value: 101 },
+        { date: '2024-01-03', value: 102 },
+      ];
+      expect(calculateSharpeRatio(curve)).toBeGreaterThan(0);
+    });
+  });
+
+  describe('buildPriceDataFromHistory', () => {
+    it('正常转换历史数据', async () => {
+      const mockHistory = [
+        { date: '2024-01-02', nav: 1.1 },
+        { date: '2024-01-01', nav: 1.0 },
+      ];
+      const result = await buildPriceDataFromHistory('000001', '2024-01-01', '2024-01-02', async () => mockHistory);
+      expect(result).toHaveLength(2);
+      expect(result[0].date).toBe('2024-01-01');
+      expect(result[0].price).toBe(1.0);
+    });
+
+    it('空数据抛出错误', async () => {
+      await expect(
+        buildPriceDataFromHistory('000001', '2024-01-01', '2024-01-02', async () => [])
+      ).rejects.toThrow('无法获取基金');
+    });
+
+    it('按日期升序排列', async () => {
+      const mockHistory = [
+        { date: '2024-01-03', nav: 1.3 },
+        { date: '2024-01-01', nav: 1.1 },
+        { date: '2024-01-02', nav: 1.2 },
+      ];
+      const result = await buildPriceDataFromHistory('000001', '2024-01-01', '2024-01-03', async () => mockHistory);
+      expect(result[0].date).toBe('2024-01-01');
+      expect(result[1].date).toBe('2024-01-02');
+      expect(result[2].date).toBe('2024-01-03');
     });
   });
 });

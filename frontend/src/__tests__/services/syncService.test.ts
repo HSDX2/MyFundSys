@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockUpsert = vi.hoisted(() => vi.fn());
 const mockDelete = vi.hoisted(() => vi.fn());
 const mockSelect = vi.hoisted(() => vi.fn());
-const mockFrom = vi.hoisted(() => vi.fn(() => ({
+const mockFrom = vi.hoisted(() => vi.fn((_table?: string) => ({
   upsert: mockUpsert,
   delete: mockDelete,
   select: mockSelect,
@@ -177,6 +177,40 @@ describe('syncService', () => {
 
       expect(result.success).toBe(true);
     });
+
+    it('delete 抛异常时返回同步失败', async () => {
+      const mockNeq = vi.fn().mockRejectedValue(new Error('Delete failed'));
+      mockDelete.mockReturnValue({ neq: mockNeq });
+
+      const result = await syncTransactionsToSupabase([]);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('同步失败');
+    });
+
+    it('upsert 抛异常时返回同步失败', async () => {
+      mockUpsert.mockRejectedValue(new Error('Upsert failed'));
+
+      const transactions: Transaction[] = [
+        {
+          id: 't_001',
+          fundId: 'f_001',
+          fundCode: '000001',
+          fundName: '测试基金',
+          type: 'buy',
+          date: '2024-01-01',
+          amount: 1000,
+          price: 1.0,
+          shares: 1000,
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      ];
+
+      const result = await syncTransactionsToSupabase(transactions);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('同步失败');
+    });
   });
 
   describe('checkSupabaseConnection', () => {
@@ -280,14 +314,14 @@ describe('syncService', () => {
         },
       ];
 
-      mockFrom.mockImplementation((table: string) => ({
+      mockFrom.mockImplementation(((table?: string) => ({
         upsert: mockUpsert,
         delete: mockDelete,
         select: () => Promise.resolve({
           data: table === 'holdings' ? mockHoldings : mockTransactions,
           error: null,
         }),
-      }));
+      })) as any);
 
       const result = await fetchAllDataFromSupabase();
 
@@ -324,7 +358,7 @@ describe('syncService', () => {
         upsert: mockUpsert,
         delete: mockDelete,
         select: () => Promise.resolve({ data: null, error: null }),
-      }));
+      }) as any);
 
       const result = await fetchAllDataFromSupabase();
 
@@ -337,7 +371,7 @@ describe('syncService', () => {
         upsert: mockUpsert,
         delete: mockDelete,
         select: () => Promise.resolve({ data: null, error: new Error('Query failed') }),
-      }));
+      }) as any);
 
       const result = await fetchAllDataFromSupabase();
 

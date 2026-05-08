@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const mockIsSupabaseConfigured = vi.hoisted(() => vi.fn());
 const mockFrom = vi.hoisted(() => vi.fn());

@@ -105,6 +105,7 @@ describe('fetchFundNavFromEdge', () => {
     const invokeMock = vi.fn().mockResolvedValue({ data: { code: '000001', nav: 1.5 } });
     mockCreateClient.mockReturnValue({
       functions: { invoke: invokeMock },
+      channel: vi.fn(() => ({ on: vi.fn().mockReturnThis(), subscribe: vi.fn() })),
     });
     const { fetchFundNavFromEdge } = await import('../../lib/supabase');
     const result = await fetchFundNavFromEdge('000001');
@@ -118,6 +119,7 @@ describe('fetchFundNavFromEdge', () => {
     const invokeMock = vi.fn().mockResolvedValue({ error: new Error('Network error') });
     mockCreateClient.mockReturnValue({
       functions: { invoke: invokeMock },
+      channel: vi.fn(() => ({ on: vi.fn().mockReturnThis(), subscribe: vi.fn() })),
     });
     const { fetchFundNavFromEdge } = await import('../../lib/supabase');
     await expect(fetchFundNavFromEdge('000001')).rejects.toThrow('Network error');
@@ -147,6 +149,7 @@ describe('searchFundsFromEdge', () => {
     const invokeMock = vi.fn().mockResolvedValue({ data: [{ code: '000001', name: '测试基金' }] });
     mockCreateClient.mockReturnValue({
       functions: { invoke: invokeMock },
+      channel: vi.fn(() => ({ on: vi.fn().mockReturnThis(), subscribe: vi.fn() })),
     });
     const { searchFundsFromEdge } = await import('../../lib/supabase');
     const result = await searchFundsFromEdge('沪深300');
@@ -160,6 +163,7 @@ describe('searchFundsFromEdge', () => {
     const invokeMock = vi.fn().mockResolvedValue({ error: new Error('Search API error') });
     mockCreateClient.mockReturnValue({
       functions: { invoke: invokeMock },
+      channel: vi.fn(() => ({ on: vi.fn().mockReturnThis(), subscribe: vi.fn() })),
     });
     const { searchFundsFromEdge } = await import('../../lib/supabase');
     await expect(searchFundsFromEdge('沪深300')).rejects.toThrow('Search API error');
@@ -184,6 +188,7 @@ describe('subscribeTransactions', () => {
     const channelMock = vi.fn(() => ({ on: onMock, subscribe: subscribeMock }));
     mockCreateClient.mockReturnValue({
       channel: channelMock,
+      functions: { invoke: vi.fn() },
     });
     const { subscribeTransactions } = await import('../../lib/supabase');
     const callback = vi.fn();
@@ -216,6 +221,7 @@ describe('subscribeHoldings', () => {
     const channelMock = vi.fn(() => ({ on: onMock, subscribe: subscribeMock }));
     mockCreateClient.mockReturnValue({
       channel: channelMock,
+      functions: { invoke: vi.fn() },
     });
     const { subscribeHoldings } = await import('../../lib/supabase');
     const callback = vi.fn();

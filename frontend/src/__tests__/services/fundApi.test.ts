@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 // ---- Mock Supabase（vi.hoisted 确保在模块加载前初始化）----
 const mockInvoke = vi.hoisted(() => vi.fn());
@@ -384,15 +384,15 @@ describe('fetchFundNav', () => {
 
 describe('fetchMarketValuation', () => {
   const mockFetch = vi.fn();
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     mockFetch.mockReset();
-    global.fetch = mockFetch;
+    globalThis.fetch = mockFetch as any;
   });
 
   afterAll(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
   });
 
   it('缓存命中时直接返回缓存数据', async () => {
@@ -962,7 +962,7 @@ describe('clearNavCache', () => {
 
   it('清除 valuationCache', async () => {
     const mockFetch = vi.fn();
-    global.fetch = mockFetch;
+    globalThis.fetch = mockFetch as any;
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ pe: 15, pb: 1.5, source: 'json' }),
