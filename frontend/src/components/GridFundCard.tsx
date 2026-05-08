@@ -36,7 +36,7 @@ export const GridFundCard: React.FC<GridFundCardProps> = ({ overview, onClick })
         </div>
       </div>
 
-      {/* 距最近触发价 */}
+      {/* 网格触发状态 */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -46,19 +46,36 @@ export const GridFundCard: React.FC<GridFundCardProps> = ({ overview, onClick })
         background: isTriggered ? '#fff7f0' : '#f5f5f5',
         borderRadius: 6,
       }}>
-        <span style={{ fontSize: 12, color: '#666' }}>距最近触发</span>
-        <span style={{
-          fontSize: 13,
-          fontWeight: 500,
-          color: isTriggered ? '#ff6b35' : nearest_trigger.distance_pct > 0 ? '#52c41a' : '#333',
-        }}>
-          {nearest_trigger.distance_pct > 0 ? '↑' : '↓'} {Math.abs(nearest_trigger.distance_pct).toFixed(1)}%
-        </span>
-        <span style={{ fontSize: 11, color: '#999' }}>
-          {GridTypeLabels[nearest_trigger.grid_type]}·第{nearest_trigger.level}格
-        </span>
-        {isTriggered && (
-          <Badge content={triggered_pending_count} color='#ff6b35' />
+        {isTriggered ? (
+          <>
+            <span style={{ fontSize: 12, color: '#ff6b35', fontWeight: 500 }}>
+              已触发 {triggered_pending_count} 个买入点
+            </span>
+            <span style={{ fontSize: 11, color: '#999' }}>
+              {GridTypeLabels[nearest_trigger.grid_type]}·第{nearest_trigger.level}格
+            </span>
+            <Badge content={triggered_pending_count} color='#ff6b35' />
+          </>
+        ) : nearest_trigger.distance_pct > 0 ? (
+          <>
+            <span style={{ fontSize: 12, color: '#666' }}>再跌</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#52c41a' }}>
+              {Math.abs(nearest_trigger.distance_pct).toFixed(1)}%
+            </span>
+            <span style={{ fontSize: 11, color: '#999' }}>
+              到{GridTypeLabels[nearest_trigger.grid_type]}·第{nearest_trigger.level}格
+            </span>
+          </>
+        ) : (
+          <>
+            <span style={{ fontSize: 12, color: '#666' }}>已低于</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#ff6b35' }}>
+              {Math.abs(nearest_trigger.distance_pct).toFixed(1)}%
+            </span>
+            <span style={{ fontSize: 11, color: '#999' }}>
+              {GridTypeLabels[nearest_trigger.grid_type]}·第{nearest_trigger.level}格买入价
+            </span>
+          </>
         )}
       </div>
 
