@@ -7,7 +7,7 @@
 
 ## 一、严重问题 (Critical) — 必须修复
 
-### 1. FundDetail.tsx 收藏功能使用已废弃的 IndexedDB API
+### 1. FundDetail.tsx 收藏功能使用已废弃的 IndexedDB API ✅ 已修复
 **文件**: `frontend/src/pages/FundDetail.tsx:100-111`
 ```typescript
 await db.favoriteFunds.where('code').equals(fundCode).delete();
@@ -95,7 +95,7 @@ await supabase.from('transactions').insert(txPayload as any);
 
 ## 三、中等优先级问题 (Medium)
 
-### 9. csv.ts 顶部有大量未使用的 React 组件导入
+### 9. csv.ts 顶部有大量未使用的 React 组件导入 ✅ 已修复
 **文件**: `frontend/src/utils/csv.ts:1-6`
 ```typescript
 import React, { useState } from 'react';
@@ -166,7 +166,7 @@ dailyChange: data.estimateNav - data.nav,
 ```
 **问题**: 使用估算净值减去最新净值作为涨跌额，这不是真实的日涨跌幅。真实日涨跌额应该是 `最新净值 - 上一交易日净值`。
 
-### 19. console.log 散落在生产代码中
+### 19. console.log 散落在生产代码中 ✅ 已修复
 **文件**: 多处
 - `frontend/src/services/navUpdateService.ts:478, 520, 524, 548`
 - `frontend/src/components/FundHistoryCard.tsx:63, 91, 117, 159`
@@ -302,4 +302,4 @@ window.location.hash = `fund/${fund.code}`;  // 缺少 # 前缀
 | ✅ 清理 | `csv.ts` 未使用的导入 | 移除 `React`、`useState`、`Card`、`List`、`Button`、`Dialog`、`Tag`、`DownlandOutline`、`UploadOutline`、`useHoldings`、`useTransactions`、`formatMoney` | 9 |
 | ✅ 新增 | `lotDerivation.test.ts` | 18 个测试覆盖核心批次派生逻辑（`deriveLots`、`deriveRealizedLots`、`summarizeHoldings`、`matchSellLots`） | 24 |
 | ✅ 新增 | `EDGE_FUNCTIONS_API.md` | 完整的 Edge Functions 接口文档，包含 `fund-nav`、`fund-search`、`fund-history` 的输入输出格式说明 | 27 |
-| ✅ 修复 | 所有 AGENTS.md 文档一致性 | 更新根目录 + 4 个子目录 AGENTS.md 文件，与实际代码架构完全一致，修复文档与实现矛盾问题 | 26 |
+| ✅ 修复 | 删除过时的子目录 AGENTS.md | 删除 `src/hooks/`、`src/pages/`、`src/services/`、`supabase/functions/` 下的 AGENTS.md（内容已过时且与代码不符），统一以根目录 `CLAUDE.md` 为单一信息源 | 26 |
