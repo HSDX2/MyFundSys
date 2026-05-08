@@ -32,7 +32,7 @@ export interface FavoriteFund {
 export async function resetDatabase(): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  const tables = ['holdings', 'transactions', 'favorite_funds', 'fund_cache'];
+  const tables = ['holdings', 'transactions', 'favorite_funds', 'fund_cache', 'grid_strategies', 'grid_executions'];
   for (const table of tables) {
     const { data, error: fetchError } = await supabase.from(table).select('id');
     if (fetchError) {
@@ -53,9 +53,11 @@ export async function exportDatabase(): Promise<string> {
     throw new Error('Supabase 未配置');
   }
 
-  const [holdings, transactions] = await Promise.all([
+  const [holdings, transactions, gridStrategies, gridExecutions] = await Promise.all([
     supabase.from('holdings').select('*'),
     supabase.from('transactions').select('*'),
+    supabase.from('grid_strategies').select('*'),
+    supabase.from('grid_executions').select('*'),
   ]);
 
   const data = {
@@ -63,6 +65,8 @@ export async function exportDatabase(): Promise<string> {
     exportDate: new Date().toISOString(),
     holdings: holdings.data || [],
     transactions: transactions.data || [],
+    grid_strategies: gridStrategies.data || [],
+    grid_executions: gridExecutions.data || [],
   };
 
   return JSON.stringify(data, null, 2);
@@ -85,7 +89,11 @@ function validateImportData(data: unknown): { holdings: unknown[]; transactions:
   const poisonKeys = ['__proto__', 'constructor', 'prototype'];
   function hasPoison(obj: unknown): boolean {
     if (!obj || typeof obj !== 'object') return false;
-    return Object.keys(obj as object).some(k => poisonKeys.includes(k));
+    for (const [k, v] of Object.entries(obj)) {
+      if (poisonKeys.includes(k)) return true;
+      if (hasPoison(v)) return true;
+    }
+    return false;
   }
   if (holdings.some(hasPoison) || transactions.some(hasPoison)) {
     throw new Error('导入数据包含非法键');
@@ -98,7 +106,12 @@ export async function importDatabase(jsonString: string): Promise<void> {
     throw new Error('Supabase 未配置');
   }
 
-  const data = JSON.parse(jsonString);
+  let data: unknown;
+  try {
+    data = JSON.parse(jsonString);
+  } catch {
+    throw new Error('导入数据不是有效的 JSON');
+  }
   const { holdings, transactions } = validateImportData(data);
 
   if (holdings.length) {
@@ -108,5 +121,18 @@ export async function importDatabase(jsonString: string): Promise<void> {
   if (transactions.length) {
     await supabase.from('transactions').delete().neq('id', '');
     await supabase.from('transactions').insert(transactions as any);
+  }
+
+  // 导入网格数据（如果存在）
+  const obj = data as Record<string, unknown>;
+  const gridStrategies = Array.isArray(obj.grid_strategies) ? obj.grid_strategies : [];
+  const gridExecutions = Array.isArray(obj.grid_executions) ? obj.grid_executions : [];
+  if (gridStrategies.length) {
+    await supabase.from('grid_strategies').delete().neq('id', '');
+    await supabase.from('grid_strategies').insert(gridStrategies as any);
+  }
+  if (gridExecutions.length) {
+    await supabase.from('grid_executions').delete().neq('id', '');
+    await supabase.from('grid_executions').insert(gridExecutions as any);
   }
 }

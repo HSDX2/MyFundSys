@@ -98,6 +98,7 @@ export function useGridDetail(fundCode: string) {
   });
   const [currentNav, setCurrentNav] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 计算底仓份额（所有已买入未卖出格子的留利润份额之和）
   const baseShares = (() => {
@@ -106,7 +107,7 @@ export function useGridDetail(fundCode: string) {
       for (const level of levelsByType[gridType] || []) {
         if (level.status === 'executed' && level.execution && !level.sellExecution) {
           // 已买入未卖出，持有中（这些份额在卖出时会部分留存为底仓）
-          total += level.execution.remaining_shares || level.execution.executed_shares || 0;
+          total += level.execution.remaining_shares ?? level.execution.executed_shares ?? 0;
         }
       }
     }
@@ -119,11 +120,13 @@ export function useGridDetail(fundCode: string) {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
 
       // 1. 获取策略
       const strat = await fetchGridStrategyByFund(fundCode);
       if (!strat) {
         setStrategy(null);
+        setCurrentNav(null);
         return;
       }
       setStrategy(strat);
@@ -144,8 +147,13 @@ export function useGridDetail(fundCode: string) {
       // 4. 推导网格状态
       const levels = deriveGridStatuses(strat, executions, nav);
       setLevelsByType(levels);
-    } catch {
-      // 静默忽略加载错误
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '加载失败';
+      console.error('Grid detail load error:', err);
+      setError(msg);
+      setStrategy(null);
+      setCurrentNav(null);
+      setLevelsByType({ small: [], medium: [], large: [] });
     } finally {
       setLoading(false);
     }
@@ -247,6 +255,8 @@ export function useGridDetail(fundCode: string) {
       throw new Error('策略或净值数据未加载');
     }
 
+    const errors: { gridType: GridType; level: number; error: string }[] = [];
+
     // 遍历所有已买入未卖出的格子
     for (const gridType of GRID_TYPES) {
       for (const level of levelsByType[gridType] || []) {
@@ -255,25 +265,34 @@ export function useGridDetail(fundCode: string) {
           const sellShares = level.execution.executed_shares || 0;
           if (sellShares <= 0) continue;
 
-          await executeGrid({
-            strategyId: strategy.id,
-            fundCode: strategy.fund_code,
-            fundName: strategy.fund_name,
-            gridType,
-            gridLevel: level.level,
-            action: 'sell',
-            triggerPrice: level.sell_price,
-            sellShares,
-            currentNav,
-            buyExecutionId: level.execution.id,
-          });
+          try {
+            await executeGrid({
+              strategyId: strategy.id,
+              fundCode: strategy.fund_code,
+              fundName: strategy.fund_name,
+              gridType,
+              gridLevel: level.level,
+              action: 'sell',
+              triggerPrice: level.sell_price,
+              sellShares,
+              currentNav,
+              buyExecutionId: level.execution.id,
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : '卖出失败';
+            errors.push({ gridType, level: level.level, error: msg });
+          }
         }
       }
     }
 
     // 刷新数据
     await loadData();
+
+    if (errors.length > 0) {
+      throw new Error(`清仓部分失败：${errors.length} 个格子卖出出错（${errors.map(e => `${e.gridType}-${e.level}`).join(', ')}）`);
+    }
   }, [strategy, currentNav, levelsByType, loadData]);
 
-  return { strategy, levelsByType, currentNav, loading, baseShares, shouldLiquidate: isLiquidating, executeGridLevel, sellGridLevel, liquidateGridFund, refresh: loadData };
+  return { strategy, levelsByType, currentNav, loading, error, baseShares, shouldLiquidate: isLiquidating, executeGridLevel, sellGridLevel, liquidateGridFund, refresh: loadData };
 }

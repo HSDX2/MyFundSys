@@ -1081,7 +1081,7 @@ describe('gridService', () => {
       expect(getMaxSellPrice(strategy)).toBe(0.605);
     });
 
-    it('空网格返回 0', () => {
+    it('空网格返回 Infinity', () => {
       const emptyStrategy: GridStrategy = {
         ...strategy,
         grid_config: {
@@ -1090,7 +1090,7 @@ describe('gridService', () => {
           large: { label: '大网', spacing_pct: 0.2, grid_count: 0, base_investment: 0, increment_pct: 0, profit_rules: [], grids: [] },
         },
       };
-      expect(getMaxSellPrice(emptyStrategy)).toBe(0);
+      expect(getMaxSellPrice(emptyStrategy)).toBe(Infinity);
     });
   });
 });

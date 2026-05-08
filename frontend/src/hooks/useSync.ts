@@ -129,6 +129,9 @@ export function useHoldings() {
           setHoldings(enriched);
           return;
         }
+        if (error) {
+          console.error('加载持仓失败:', error);
+        }
       }
     } finally {
       setLoading(false);
@@ -145,7 +148,8 @@ export function useHoldings() {
   }, [loadHoldings]);
 
   const removeHolding = useCallback(async (id: string) => {
-    await removeHoldingWithTransactions(id);
+    // id 是 fundCode（enrichHoldingsWithNav 中 id: summary.fundCode）
+    await removeHoldingWithTransactions(id, id);
   }, []);
 
   return { holdings, lots, loading, removeHolding, refresh };
@@ -165,6 +169,9 @@ export function useTransactions() {
         if (!error && data) {
           setTransactions(data.map(mapTransaction));
           return;
+        }
+        if (error) {
+          console.error('加载交易记录失败:', error);
         }
       }
     } finally {

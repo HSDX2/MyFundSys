@@ -78,7 +78,7 @@ async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null>
     }
     return null;
   } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("fetchFromEastMoney failed:", err);
     return null;
   }
 }
@@ -104,7 +104,7 @@ export async function fetchMarketValuation(): Promise<MarketValuationData> {
 
     throw new Error('无法获取估值数据');
   } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("fetchMarketValuation failed:", err);
     throw new Error('市场估值数据获取失败');
   }
 }
@@ -116,7 +116,7 @@ async function fetchFromLocalJson(): Promise<MarketValuationData | null> {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
-    if (data && data.pe && data.pb) {
+    if (data && data.pe != null && data.pb != null) {
       return {
         date: data.date || new Date().toISOString().split('T')[0],
         pe: Number(data.pe),
@@ -128,7 +128,7 @@ async function fetchFromLocalJson(): Promise<MarketValuationData | null> {
     }
     return null;
   } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("fetchFromLocalJson failed:", err);
     return null;
   }
 }
@@ -162,7 +162,7 @@ export async function searchFunds(keyword: string, mode: 'auto' | 'code' | 'name
       ).slice(0, 10);
     }
   } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("searchFunds failed:", err);
     return [];
   }
 }
@@ -193,7 +193,7 @@ async function searchFromEastMoney(keyword: string): Promise<FundSearchResult[]>
     if (error) throw error;
     return Array.isArray(data) ? data : [];
   } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("searchFromEastMoney failed:", err);
     return [];
   }
 }
@@ -266,7 +266,7 @@ export async function batchRefreshFunds(codes: string[]): Promise<{
           if (data) success.push(code);
           else failed.push(code);
         } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("batchRefreshFunds failed:", err);
           failed.push(code);
         }
       })
@@ -311,7 +311,7 @@ export async function fetchFundHistory(
     if (data) return data;
     throw new Error('历史净值数据为空');
   } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("fetchFundHistory failed:", err);
     return [];
   }
 }
@@ -346,7 +346,7 @@ export async function getFundHistoryWithCache(
     historyCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   } catch (err) {
-    console.error("fetchFundNav failed:", err);
+    console.error("getFundHistoryWithCache failed:", err);
     return [];
   }
 }

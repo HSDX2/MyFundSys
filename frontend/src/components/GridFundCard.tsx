@@ -30,7 +30,7 @@ export const GridFundCard: React.FC<GridFundCardProps> = ({ overview, onClick })
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>
-            {current_nav.toFixed(4)}
+            {current_nav?.toFixed(4) ?? '--'}
           </div>
           <div style={{ fontSize: 11, color: '#999' }}>当前净值</div>
         </div>

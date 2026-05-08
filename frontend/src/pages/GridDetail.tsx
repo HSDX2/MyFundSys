@@ -13,13 +13,14 @@ interface GridDetailProps {
 }
 
 function GridDetail({ fundCode, onBack }: GridDetailProps) {
-  const { strategy, levelsByType, currentNav, loading, baseShares, shouldLiquidate, executeGridLevel, sellGridLevel, liquidateGridFund, refresh } = useGridDetail(fundCode);
+  const { strategy, levelsByType, currentNav, loading, error, baseShares, shouldLiquidate, executeGridLevel, sellGridLevel, liquidateGridFund, refresh } = useGridDetail(fundCode);
   const [executionSheet, setExecutionSheet] = useState<{
     visible: boolean;
     gridType: GridType;
     level: GridLevelWithStatus | null;
     action: 'buy' | 'sell';
   }>({ visible: false, gridType: 'small', level: null, action: 'buy' });
+  const [isExecuting, setIsExecuting] = useState(false);
 
   const handleTriggerClick = (gridType: GridType, level: number) => {
     const gridLevel = levelsByType[gridType]?.find(l => l.level === level);
@@ -35,22 +36,33 @@ function GridDetail({ fundCode, onBack }: GridDetailProps) {
   };
 
   const handleExecute = async (gridType: GridType, level: number) => {
+    if (isExecuting) return;
     const gridLevel = levelsByType[gridType]?.find(l => l.level === level);
     if (!gridLevel) return;
 
-    if (gridLevel.status === 'sell_triggered') {
-      await sellGridLevel(gridType, level);
-    } else {
-      await executeGridLevel(gridType, level);
+    setIsExecuting(true);
+    try {
+      if (gridLevel.status === 'sell_triggered') {
+        await sellGridLevel(gridType, level);
+      } else {
+        await executeGridLevel(gridType, level);
+      }
+    } finally {
+      setIsExecuting(false);
     }
   };
 
   const handleLiquidate = async () => {
+    if (isExecuting) return;
+    setIsExecuting(true);
     try {
       await liquidateGridFund();
       Toast.show({ content: '清仓完成', position: 'bottom' });
     } catch (err) {
-      Toast.show({ content: '清仓失败，请稍后重试', position: 'bottom' });
+      const msg = err instanceof Error ? err.message : '清仓失败';
+      Toast.show({ content: msg, position: 'bottom' });
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -67,7 +79,7 @@ function GridDetail({ fundCode, onBack }: GridDetailProps) {
       <div>
         <NavBar onBack={onBack}>网格详情</NavBar>
         <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-          未找到该基金的网格策略
+          {error || '未找到该基金的网格策略'}
         </div>
       </div>
     );

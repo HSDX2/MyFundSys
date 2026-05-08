@@ -383,7 +383,7 @@ export function calculateSellShares(
   profitRetentionPct: number
 ): { sellShares: number; retainShares: number } {
   const retainShares = Math.round(buyShares * profitRetentionPct * 10000) / 10000;
-  const sellShares = Math.round((buyShares - retainShares) * 10000) / 10000;
+  const sellShares = Math.max(0, Math.round((buyShares - retainShares) * 10000) / 10000);
   return { sellShares, retainShares };
 }
 
@@ -397,14 +397,16 @@ export function shouldLiquidate(strategy: GridStrategy, currentNav: number): boo
 
 export function getMaxSellPrice(strategy: GridStrategy): number {
   let maxSellPrice = 0;
+  let hasGrid = false;
   for (const gridType of GRID_TYPES) {
     const config = strategy.grid_config[gridType];
     if (!config) continue;
     for (const grid of config.grids) {
+      hasGrid = true;
       maxSellPrice = Math.max(maxSellPrice, grid.sell_price);
     }
   }
-  return maxSellPrice;
+  return hasGrid ? maxSellPrice : Infinity;
 }
 
 export function computeFundOverview(
@@ -450,6 +452,12 @@ export function computeFundOverview(
         }
       }
     }
+  }
+
+  // 兜底：所有网格都已买入时，nearestPrice 为 Infinity，避免 NaN
+  if (nearestPrice === Infinity) {
+    nearestPrice = 0;
+    nearestDistance = 0;
   }
 
   // 计算总预算
