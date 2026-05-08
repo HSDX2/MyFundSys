@@ -125,8 +125,6 @@ export function useHoldings() {
           return;
         }
       }
-      setHoldings([]);
-      setLots([]);
     } finally {
       setLoading(false);
     }
@@ -164,7 +162,6 @@ export function useTransactions() {
           return;
         }
       }
-      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -192,7 +189,10 @@ export function useTransactions() {
       status: transaction.status || 'completed',
       source: transaction.source || 'manual',
     };
-    const { data } = await supabase.from('transactions').insert(payload as any).select();
+    const { data, error } = await supabase.from('transactions').insert(payload as any).select();
+    if (error) {
+      throw new Error(`保存交易失败: ${error.message}`);
+    }
     return (data as any)?.[0]?.id;
   }, []);
 

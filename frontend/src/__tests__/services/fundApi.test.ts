@@ -443,30 +443,25 @@ describe('fetchMarketValuation', () => {
     expect(result.date).toBeDefined();
   });
 
-  it('fetch 返回非 ok 时返回 fallback', async () => {
+  it('fetch 返回非 ok 时抛出错误', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
 
-    const result = await fetchMarketValuation();
-    expect(result.source).toBe('error');
-    expect(result.pe).toBe(16.0);
+    await expect(fetchMarketValuation()).rejects.toThrow('市场估值数据获取失败');
   });
 
-  it('fetch 返回数据不完整时返回 fallback', async () => {
+  it('fetch 返回数据不完整时抛出错误', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ pe: null }),
     });
 
-    const result = await fetchMarketValuation();
-    expect(result.source).toBe('error');
+    await expect(fetchMarketValuation()).rejects.toThrow('市场估值数据获取失败');
   });
 
-  it('fetch 抛异常时返回 fallback', async () => {
+  it('fetch 抛异常时抛出错误', async () => {
     mockFetch.mockRejectedValueOnce(new Error('Network'));
 
-    const result = await fetchMarketValuation();
-    expect(result.source).toBe('error');
-    expect(result.error).toBe('数据获取失败');
+    await expect(fetchMarketValuation()).rejects.toThrow('市场估值数据获取失败');
   });
 });
 

@@ -531,12 +531,15 @@ export async function removeTransactionWithHoldingUpdate(
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  const { data: txData } = await supabase
+  const { data: txData, error: txError } = await supabase
     .from('transactions')
     .select('*')
     .eq('id', transactionId)
     .limit(1)
     .maybeSingle();
+  if (txError) {
+    throw new Error(`查询交易失败: ${txError.message}`);
+  }
   const transaction = txData as any;
 
   if (!transaction) return;
@@ -558,12 +561,15 @@ export async function removeHoldingWithTransactions(holdingId: string, fundCode?
   // 如果提供了 fundCode，直接使用；否则从 holdings 表查询（向后兼容）
   let targetFundCode = fundCode;
   if (!targetFundCode) {
-    const { data: holdingData } = await supabase
+    const { data: holdingData, error: holdingError } = await supabase
       .from('holdings')
       .select('fund_code')
       .eq('id', holdingId)
       .limit(1)
       .maybeSingle();
+    if (holdingError) {
+      throw new Error(`查询持仓失败: ${holdingError.message}`);
+    }
     const holding = holdingData as any;
 
     if (!holding) return;
@@ -606,10 +612,13 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
       return { processedCount: 0, pendingCount: 0, errors: [] };
     }
 
-  const { data: pendingTxData } = await supabase
+  const { data: pendingTxData, error: pendingError } = await supabase
     .from('transactions')
     .select('*')
     .eq('status', 'pending');
+  if (pendingError) {
+    return { processedCount: 0, pendingCount: 0, errors: [`查询在途交易失败: ${pendingError.message}`] };
+  }
   const pendingTransactions = pendingTxData as any[] | null;
 
   if (!pendingTransactions || pendingTransactions.length === 0) {
@@ -626,6 +635,7 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
   }
 
   const navCache = new Map<string, { nav: number; navDate: string }>();
+  const errors: string[] = [];
 
   for (const [code, group] of fundGroups) {
     try {
@@ -656,13 +666,12 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
           }
         }
       }
-    } catch {
-      // 静默忽略单只基金净值获取失败，继续处理其他基金
+    } catch (err) {
+      errors.push(`${code}: 净值获取失败 — ${err instanceof Error ? err.message : '未知错误'}`);
     }
   }
 
   let processedCount = 0;
-  const errors: string[] = [];
 
   for (const transaction of pendingTransactions) {
     try {

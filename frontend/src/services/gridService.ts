@@ -122,7 +122,8 @@ export async function createGridStrategy(
 export async function deleteGridStrategy(id: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  await supabase.from('grid_strategies').delete().eq('id', id);
+  const { error } = await supabase.from('grid_strategies').delete().eq('id', id);
+  if (error) throw new Error(`删除网格策略失败: ${error.message}`);
 }
 
 // ============================================
@@ -282,10 +283,14 @@ export async function executeGrid(
   }
 
   // 3. 更新买入 execution 的 remaining_shares
-  await (supabase
+  const { error: updateError } = await (supabase
     .from('grid_executions') as any)
     .update({ remaining_shares: 0 })
     .eq('id', buyExecutionId);
+
+  if (updateError) {
+    throw new Error(`更新买入执行记录失败: ${updateError.message}`);
+  }
 
   return { executionId: (sellExecData as any).id, transactionId };
 }
@@ -293,10 +298,11 @@ export async function executeGrid(
 export async function cancelGridExecution(executionId: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  await (supabase
+  const { error } = await (supabase
     .from('grid_executions') as any)
     .update({ status: 'cancelled' })
     .eq('id', executionId);
+  if (error) throw new Error(`取消网格执行失败: ${error.message}`);
 }
 
 // ============================================
