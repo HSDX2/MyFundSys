@@ -53,9 +53,8 @@ serve(async (req: Request) => {
 
   try {
     // 从 POST body 获取搜索关键词（supabase.functions.invoke 使用 POST 传参）
-    const url = new URL(req.url);
     const body = await req.json().catch(() => ({}));
-    const keyword = body.keyword || url.searchParams.get('keyword');
+    const keyword = body.keyword;
 
     if (!keyword) {
       return new Response(

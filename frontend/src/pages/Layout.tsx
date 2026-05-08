@@ -192,7 +192,11 @@ const Layout: React.FC = () => {
       {currentView.type === 'tab' && (
         <TabBar
           activeKey={activeKey}
-          onChange={setActiveKey}
+          onChange={(key) => {
+            setActiveKey(key);
+            setCurrentView({ type: 'tab' });
+            window.location.hash = key;
+          }}
           className="tab-bar"
           style={{ height: 60 }}
         >

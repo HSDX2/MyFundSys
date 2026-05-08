@@ -53,12 +53,15 @@ async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null>
       const historyData = await fetchFundHistory(fundCode, 5, 1, '');
       if (historyData.length >= 1) {
         const latestHistory = historyData[0];
+        const divisor = 1 + latestHistory.dailyChangeRate / 100;
         return {
           code: data.code,
           name: data.name,
           nav: data.nav,
           navDate: data.navDate,
-          dailyChange: latestHistory.nav - latestHistory.nav / (1 + latestHistory.dailyChangeRate / 100),
+          dailyChange: divisor !== 0
+            ? latestHistory.nav - latestHistory.nav / divisor
+            : 0,
           dailyChangeRate: latestHistory.dailyChangeRate,
         };
       }

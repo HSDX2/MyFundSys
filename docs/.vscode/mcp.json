@@ -6,7 +6,7 @@
         "@qverisai/mcp"
       ],
       "env": {
-        "QVERIS_API_KEY": "sk-ihp_GEO4O_j7wtTroyGR1uOf_DFFaxdfbAfjaMrpywc"
+        "QVERIS_API_KEY": "<YOUR_API_KEY>"
       }
     }
   }

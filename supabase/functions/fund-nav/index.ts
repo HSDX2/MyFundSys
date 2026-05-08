@@ -56,9 +56,8 @@ serve(async (req: Request) => {
 
   try {
     // 从 POST body 获取基金代码（supabase.functions.invoke 使用 POST 传参）
-    const url = new URL(req.url);
     const body = await req.json().catch(() => ({}));
-    const code = body.code || url.searchParams.get('code') || url.pathname.split('/').pop();
+    const code = body.code;
 
     if (!code || code === 'fund-nav') {
       return new Response(

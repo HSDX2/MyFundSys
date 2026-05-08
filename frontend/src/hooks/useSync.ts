@@ -94,6 +94,7 @@ function mapTransaction(t: any): Transaction {
     fee: t.fee,
     status: t.status,
     source: t.source || 'manual',
+    gridExecutionId: t.grid_execution_id,
     createdAt: t.created_at,
   };
 }

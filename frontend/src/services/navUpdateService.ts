@@ -71,6 +71,7 @@ export function deriveLots(transactions: Transaction[]): Lot[] {
 
   // 匹配卖出：优先按 gridExecutionId 精确匹配，fallback 按成本升序
   for (const sell of sellTxs) {
+    if (sell.shares <= 0) continue;
     let remainingToSell = sell.shares;
 
     // 1. 优先精确匹配：如果 sell 指定了 gridExecutionId，只卖该 lot
@@ -134,6 +135,7 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
   const realizedLots: RealizedLot[] = [];
 
   for (const sell of sellTxs) {
+    if (sell.shares <= 0) continue;
     let remainingToSell = sell.shares;
 
     // 优先精确匹配
@@ -151,7 +153,7 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
         const cost = sellFromLot * lot.cost;
         const revenue = sellFromLot * sell.price;
         const profit = revenue - cost;
-        const profitRate = cost > 0 ? (profit / cost) * 100 : 0;
+        const profitRate = cost > 0 ? profit / cost : 0;
         const holdingDays = Math.round((new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24));
 
         realizedLots.push({
@@ -180,36 +182,37 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
 
       for (const lot of fundLots) {
         if (remainingToSell <= 0) break;
-      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-      lot.remainingShares -= sellFromLot;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
 
-      // 每次卖出都记录已实现盈亏（包括部分卖出）
-      const sellDate = new Date(sell.date);
-      const buyDate = new Date(lot.date);
-      const holdingDays = Math.max(0, Math.floor((sellDate.getTime() - buyDate.getTime()) / (1000 * 60 * 60 * 24)));
-      const cost = sellFromLot * lot.cost;
-      const revenue = sellFromLot * sell.price;
-      const profit = revenue - cost;
-      const profitRate = cost > 0 ? profit / cost : 0;
+        // 每次卖出都记录已实现盈亏（包括部分卖出）
+        const sellDate = new Date(sell.date);
+        const buyDate = new Date(lot.date);
+        const holdingDays = Math.max(0, Math.round((sellDate.getTime() - buyDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const cost = sellFromLot * lot.cost;
+        const revenue = sellFromLot * sell.price;
+        const profit = revenue - cost;
+        const profitRate = cost > 0 ? profit / cost : 0;
 
-      realizedLots.push({
-        id: lot.id,
-        fundCode: lot.fundCode,
-        fundName: lot.fundName,
-        buyDate: lot.date,
-        sellDate: sell.date,
-        shares: sellFromLot,
-        buyNav: lot.cost,
-        sellNav: sell.price,
-        cost,
-        revenue,
-        profit,
-        profitRate,
-        holdingDays,
-      });
+        realizedLots.push({
+          id: lot.id,
+          fundCode: lot.fundCode,
+          fundName: lot.fundName,
+          buyDate: lot.date,
+          sellDate: sell.date,
+          shares: sellFromLot,
+          buyNav: lot.cost,
+          sellNav: sell.price,
+          cost,
+          revenue,
+          profit,
+          profitRate,
+          holdingDays,
+        });
+      }
     }
   }
-}
 
   // 按卖出日期倒序
   return realizedLots.sort((a, b) => b.sellDate.localeCompare(a.sellDate));

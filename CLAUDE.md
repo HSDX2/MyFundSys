@@ -169,6 +169,7 @@ Hash-based routing（非 react-router routes），Layout.tsx 底部 TabBar 导�
 
 - **Framework**: Vitest v4 + @testing-library/react + fake-indexeddb
 - **Setup file**: `src/__tests__/setup.ts` (imports jest-dom + fake-indexeddb/auto)
+- **Test count**: 131 test cases
 
 **Mock pattern** — use `vi.hoisted()` for mocks that must exist before module load:
 
@@ -199,6 +200,8 @@ beforeEach(() => {
 | `favorite_funds` | 自选基金 |
 | `fund_cache` | 基金搜索缓存 |
 | `fund_search_history` | 搜索历史 |
+| `grid_strategies` | 网格交易策略配置 |
+| `grid_executions` | 网格交易执行记录 |
 
 RLS enabled with ALLOW ALL policy (single-user mode, no user_id field).
 

@@ -46,6 +46,7 @@ interface DbTransaction {
   confirm_date?: string;
   status: 'pending' | 'completed';
   source?: string;
+  grid_execution_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -104,6 +105,7 @@ function toDbTransaction(tx: Transaction): Omit<DbTransaction, 'id' | 'created_a
     confirm_date: tx.confirmDate || tx.date,
     status: tx.status || 'completed',
     source: tx.source || 'manual',
+    grid_execution_id: tx.gridExecutionId,
   };
 }
 
@@ -125,6 +127,7 @@ function fromDbTransaction(db: DbTransaction): Transaction {
     fee: db.fee,
     status: db.status,
     source: (db.source as 'manual' | 'grid') || 'manual',
+    gridExecutionId: db.grid_execution_id,
     createdAt: db.created_at,
   };
 }

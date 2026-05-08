@@ -140,6 +140,40 @@ describe('deriveLots - 批次派生', () => {
     });
   });
 
+  describe('gridExecutionId 精确匹配', () => {
+    it('卖出时优先匹配相同 gridExecutionId 的批次', () => {
+      const txs = [
+        makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 500, price: 1.0, gridExecutionId: 'grid2' }),
+        makeBuyTx({ id: 'buy_002', date: '2024-02-01', shares: 500, price: 2.0, gridExecutionId: 'grid2' }),
+        makeSellTx({ id: 'sell_001', date: '2024-03-01', shares: 300, price: 1.2, gridExecutionId: 'grid2' }),
+      ];
+
+      const lots = deriveLots(txs);
+
+      const lot1 = lots.find(l => l.id === 'buy_001');
+      const lot2 = lots.find(l => l.id === 'buy_002');
+
+      expect(lot1?.remainingShares).toBe(200);
+      expect(lot2?.remainingShares).toBe(500);
+    });
+
+    it('gridExecutionId 匹配不足时 fallback 到成本升序', () => {
+      const txs = [
+        makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 500, price: 1.0, gridExecutionId: 'grid1' }),
+        makeBuyTx({ id: 'buy_002', date: '2024-02-01', shares: 500, price: 2.0, gridExecutionId: 'grid2' }),
+        makeSellTx({ id: 'sell_001', date: '2024-03-01', shares: 700, price: 1.2, gridExecutionId: 'grid2' }),
+      ];
+
+      const lots = deriveLots(txs);
+
+      const lot1 = lots.find(l => l.id === 'buy_001');
+      const lot2 = lots.find(l => l.id === 'buy_002');
+
+      expect(lot1?.remainingShares).toBe(300);
+      expect(lot2).toBeUndefined();
+    });
+  });
+
   describe('边界情况', () => {
     it('无交易返回空数组', () => {
       const lots = deriveLots([]);
@@ -150,6 +184,18 @@ describe('deriveLots - 批次派生', () => {
       const txs = [makeSellTx()];
       const lots = deriveLots(txs);
       expect(lots).toHaveLength(0);
+    });
+
+    it('卖出份额为0被跳过', () => {
+      const txs = [
+        makeBuyTx({ id: 'buy_001', shares: 1000, price: 1.0 }),
+        makeSellTx({ id: 'sell_001', shares: 0, price: 1.2 }),
+      ];
+
+      const lots = deriveLots(txs);
+
+      expect(lots).toHaveLength(1);
+      expect(lots[0].remainingShares).toBe(1000);
     });
 
     it('卖出金额超过持仓份额，remainingShares 为负导致批次被过滤', () => {
@@ -236,12 +282,42 @@ describe('deriveRealizedLots - 已实现盈亏派生', () => {
         makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 100, price: 1.0, amount: 100 }),
         makeSellTx({ id: 'sell_001', date: '2024-02-01', shares: 100, price: 1.5, amount: 150 }),
       ];
-      
+
       const realized = deriveRealizedLots(txs);
-      
+
       expect(realized).toHaveLength(1);
       expect(realized[0].profit).toBeCloseTo(50, 0); // 100 * (1.5 - 1.0)
       expect(realized[0].profitRate).toBeCloseTo(0.5, 2); // 50%
+    });
+  });
+
+  describe('gridExecutionId 精确匹配', () => {
+    it('按 gridExecutionId 精确匹配计算盈亏', () => {
+      const txs = [
+        makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 500, price: 1.0, amount: 500, gridExecutionId: 'grid2' }),
+        makeBuyTx({ id: 'buy_002', date: '2024-02-01', shares: 500, price: 2.0, amount: 1000, gridExecutionId: 'grid2' }),
+        makeSellTx({ id: 'sell_001', date: '2024-03-01', shares: 300, price: 1.5, amount: 450, gridExecutionId: 'grid2' }),
+      ];
+
+      const realized = deriveRealizedLots(txs);
+
+      expect(realized).toHaveLength(1);
+      expect(realized[0].id).toBe('buy_001');
+      expect(realized[0].shares).toBe(300);
+      expect(realized[0].profit).toBeCloseTo(150, 0);
+    });
+  });
+
+  describe('边界情况', () => {
+    it('卖出份额为0不产生已实现盈亏', () => {
+      const txs = [
+        makeBuyTx({ id: 'buy_001', shares: 1000, price: 1.0, amount: 1000 }),
+        makeSellTx({ id: 'sell_001', shares: 0, price: 1.2, amount: 0 }),
+      ];
+
+      const realized = deriveRealizedLots(txs);
+
+      expect(realized).toHaveLength(0);
     });
   });
 });
@@ -292,10 +368,120 @@ describe('matchSellLots - 卖出匹配', () => {
     const lots: Lot[] = [
       { id: '1', fundCode: '000001', fundName: '华夏', shares: 100, remainingShares: 100, cost: 1.0, date: '2024-01-01', isPending: false },
     ];
-    
+
     const result = matchSellLots(lots, '000001', 150);
-    
+
     expect(result.lotsUsed[0].shares).toBe(100);
     expect(result.remainingShares).toBe(50);
+  });
+
+  it('gridExecutionId 精确匹配', () => {
+    const lots: Lot[] = [
+      { id: '1', fundCode: '000001', fundName: 'A', shares: 500, remainingShares: 500, cost: 1.0, date: '2024-01-01', isPending: false, gridExecutionId: 'grid2' },
+      { id: '2', fundCode: '000001', fundName: 'A', shares: 500, remainingShares: 500, cost: 2.0, date: '2024-02-01', isPending: false, gridExecutionId: 'grid2' },
+    ];
+
+    const result = matchSellLots(lots, '000001', 300, 'grid2');
+
+    expect(result.lotsUsed).toHaveLength(1);
+    expect(result.lotsUsed[0].lotId).toBe('1');
+    expect(result.lotsUsed[0].shares).toBe(300);
+    expect(result.remainingShares).toBe(0);
+  });
+
+  it('gridExecutionId 匹配不足时 fallback', () => {
+    const lots: Lot[] = [
+      { id: '1', fundCode: '000001', fundName: 'A', shares: 500, remainingShares: 500, cost: 1.0, date: '2024-01-01', isPending: false, gridExecutionId: 'grid1' },
+      { id: '2', fundCode: '000001', fundName: 'A', shares: 500, remainingShares: 500, cost: 2.0, date: '2024-02-01', isPending: false, gridExecutionId: 'grid2' },
+    ];
+
+    const result = matchSellLots(lots, '000001', 700, 'grid2');
+
+    expect(result.lotsUsed).toHaveLength(2);
+    expect(result.lotsUsed[0].lotId).toBe('2');
+    expect(result.lotsUsed[0].shares).toBe(500);
+    expect(result.lotsUsed[1].lotId).toBe('1');
+    expect(result.lotsUsed[1].shares).toBe(200);
+    expect(result.remainingShares).toBe(0);
+  });
+});
+
+describe('gridExecutionId 精确匹配', () => {
+  it('deriveLots 优先按 gridExecutionId 匹配', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy1', shares: 100, price: 1.0, gridExecutionId: 'grid1' }),
+      makeBuyTx({ id: 'buy2', shares: 100, price: 0.8, gridExecutionId: 'grid2' }),
+      makeSellTx({ id: 'sell1', shares: 50, price: 1.2, gridExecutionId: 'grid1' }),
+    ];
+
+    const lots = deriveLots(txs);
+    const lot1 = lots.find(l => l.id === 'buy1');
+    const lot2 = lots.find(l => l.id === 'buy2');
+
+    expect(lot1?.remainingShares).toBe(50);
+    expect(lot2?.remainingShares).toBe(100);
+  });
+
+  it('deriveLots 精确匹配后 fallback 匹配剩余', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy1', shares: 100, price: 1.0, gridExecutionId: 'grid1' }),
+      makeBuyTx({ id: 'buy2', shares: 100, price: 0.8 }),
+      makeSellTx({ id: 'sell1', shares: 150, price: 1.2, gridExecutionId: 'grid1' }),
+    ];
+
+    const lots = deriveLots(txs);
+    const lot1 = lots.find(l => l.id === 'buy1');
+    const lot2 = lots.find(l => l.id === 'buy2');
+
+    expect(lot1).toBeUndefined();
+    expect(lot2?.remainingShares).toBe(50);
+  });
+
+  it('deriveLots 忽略 shares <= 0 的卖出', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy1', shares: 100, price: 1.0 }),
+      makeSellTx({ id: 'sell1', shares: 0, price: 1.2 }),
+    ];
+
+    const lots = deriveLots(txs);
+    expect(lots).toHaveLength(1);
+    expect(lots[0].remainingShares).toBe(100);
+  });
+
+  it('deriveRealizedLots 按 gridExecutionId 精确匹配记录盈亏', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy1', shares: 100, price: 1.0, gridExecutionId: 'grid1' }),
+      makeBuyTx({ id: 'buy2', shares: 100, price: 0.8, gridExecutionId: 'grid2' }),
+      makeSellTx({ id: 'sell1', shares: 50, price: 1.2, gridExecutionId: 'grid1' }),
+    ];
+
+    const realized = deriveRealizedLots(txs);
+    const r1 = realized.find(r => r.id === 'buy1');
+
+    expect(r1?.shares).toBe(50);
+    expect(r1?.profit).toBeCloseTo(10, 1);
+  });
+
+  it('deriveRealizedLots 忽略 shares <= 0 的卖出', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy1', shares: 100, price: 1.0 }),
+      makeSellTx({ id: 'sell1', shares: 0, price: 1.2 }),
+    ];
+
+    const realized = deriveRealizedLots(txs);
+    expect(realized).toHaveLength(0);
+  });
+
+  it('matchSellLots 按 gridExecutionId 精确匹配', () => {
+    const lots: Lot[] = [
+      { id: '1', fundCode: '000001', fundName: '华夏', shares: 100, remainingShares: 100, cost: 1.0, date: '2024-01-01', isPending: false, gridExecutionId: 'grid1' },
+      { id: '2', fundCode: '000001', fundName: '华夏', shares: 100, remainingShares: 100, cost: 0.8, date: '2024-02-01', isPending: false, gridExecutionId: 'grid2' },
+    ];
+
+    const result = matchSellLots(lots, '000001', 50, 'grid2');
+
+    expect(result.lotsUsed).toHaveLength(1);
+    expect(result.lotsUsed[0].lotId).toBe('2');
+    expect(result.remainingShares).toBe(0);
   });
 });
