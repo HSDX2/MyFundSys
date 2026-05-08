@@ -217,14 +217,9 @@ export async function batchFetchNav(
     const batch = fundCodes.slice(i, i + batchSize);
     const results = await Promise.all(
       batch.map(async (code) => {
-        try {
-          const navData = await fetchFundNav(code);
-          if (navData && navData.nav > 0) {
-            return { code, nav: navData.nav, navDate: navData.navDate, name: navData.name };
-          }
-        } catch (err) {
-    console.error("fetchFundNav failed:", err);
-          // 忽略单个基金获取失败
+        const navData = await fetchFundNav(code);
+        if (navData && navData.nav > 0) {
+          return { code, nav: navData.nav, navDate: navData.navDate, name: navData.name };
         }
         return null;
       })
@@ -312,8 +307,9 @@ export async function fetchFundHistory(
     const { data, error } = await supabase.functions.invoke('fund-history', {
       body: { code: fundCode, pageSize, pageIndex, startDate, endDate },
     });
-    if (!error && data) return data;
-    return [];
+    if (error) throw new Error(`获取历史净值失败: ${error.message || error}`);
+    if (data) return data;
+    throw new Error('历史净值数据为空');
   } catch (err) {
     console.error("fetchFundNav failed:", err);
     return [];

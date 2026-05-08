@@ -50,7 +50,7 @@ function GridDetail({ fundCode, onBack }: GridDetailProps) {
       await liquidateGridFund();
       Toast.show({ content: '清仓完成', position: 'bottom' });
     } catch (err) {
-      Toast.show({ content: `清仓失败: ${err instanceof Error ? err.message : '未知错误'}`, position: 'bottom' });
+      Toast.show({ content: '清仓失败，请稍后重试', position: 'bottom' });
     }
   };
 

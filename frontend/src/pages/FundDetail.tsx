@@ -28,7 +28,7 @@ const FundDetail: React.FC = () => {
   // 解析 hash 获取 fundCode
   useEffect(() => {
     const hash = window.location.hash;
-    const match = hash.match(/#fund\/([^?#/]+)/);
+    const match = hash.match(/#fund\/(\d{6})/);
     if (match) {
       setFundCode(match[1]);
     }

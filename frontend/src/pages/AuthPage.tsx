@@ -16,25 +16,46 @@ const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
   const handleSubmit = async (values: { password: string }) => {
     try {
       setLoading(true);
-      
+
+      // 检查错误次数限制
+      const failKey = 'myfundsys_auth_fail';
+      const lockKey = 'myfundsys_auth_lock';
+      const lockUntil = Number(localStorage.getItem(lockKey) || '0');
+      if (lockUntil > Date.now()) {
+        const remain = Math.ceil((lockUntil - Date.now()) / 60000);
+        Toast.show({ content: `错误次数过多，请 ${remain} 分钟后重试`, position: 'bottom' });
+        form.resetFields();
+        return;
+      }
+
       // 模拟网络延迟，增加安全性
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       if (values.password === CORRECT_PASSWORD) {
+        // 清除失败记录
+        localStorage.removeItem(failKey);
+        localStorage.removeItem(lockKey);
         // 将认证状态保存到 localStorage
         localStorage.setItem('myfundsys_auth', 'true');
         localStorage.setItem('myfundsys_auth_time', Date.now().toString());
-        
+
         Toast.show({
           content: '登录成功',
           position: 'bottom',
         });
         onAuthSuccess();
       } else {
-        Toast.show({
-          content: '密码错误',
-          position: 'bottom',
-        });
+        const fails = (Number(localStorage.getItem(failKey) || '0') + 1);
+        localStorage.setItem(failKey, String(fails));
+        if (fails >= 5) {
+          localStorage.setItem(lockKey, String(Date.now() + 5 * 60 * 1000));
+          Toast.show({ content: '错误次数过多，锁定 5 分钟', position: 'bottom' });
+        } else {
+          Toast.show({
+            content: `密码错误（剩余 ${5 - fails} 次）`,
+            position: 'bottom',
+          });
+        }
         form.resetFields();
       }
     } catch (error) {

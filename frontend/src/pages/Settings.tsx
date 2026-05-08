@@ -111,7 +111,8 @@ const Settings: React.FC = () => {
 
       await refresh();
     } catch (err: any) {
-      Toast.show({ content: err.message || 'CSV 导入失败', position: 'bottom' });
+      console.error('CSV 导入失败:', err);
+      Toast.show({ content: 'CSV 导入失败，请检查文件格式', position: 'bottom' });
     } finally {
       setCsvImporting(false);
       // 重置 file input

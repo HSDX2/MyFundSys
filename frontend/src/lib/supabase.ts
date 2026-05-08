@@ -11,6 +11,13 @@ import type { Database } from '../types/database';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
+if (supabaseUrl && !supabaseUrl.startsWith('http')) {
+  throw new Error('VITE_SUPABASE_URL 格式无效');
+}
+if (supabaseKey && !supabaseKey.startsWith('eyJ')) {
+  throw new Error('VITE_SUPABASE_ANON_KEY 格式无效，请使用 JWT 格式');
+}
+
 /**
  * Supabase 客户端实例
  * @description 用于数据库操作和实时订阅
