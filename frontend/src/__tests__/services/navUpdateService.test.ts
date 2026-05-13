@@ -623,6 +623,9 @@ describe('processPendingTransactions', () => {
 
     let callCount = 0;
     mockFrom.mockImplementation((tableName: string) => {
+      if (tableName === 'pending_alerts') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+      }
       if (tableName !== 'transactions') return {};
       callCount++;
       if (callCount === 1) {
@@ -795,6 +798,9 @@ describe('processPendingTransactions', () => {
 
     let callCount = 0;
     mockFrom.mockImplementation((tableName: string) => {
+      if (tableName === 'pending_alerts') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+      }
       if (tableName !== 'transactions') return {};
       callCount++;
       if (callCount === 1) {
@@ -827,6 +833,9 @@ describe('processPendingTransactions', () => {
 
     let callCount = 0;
     mockFrom.mockImplementation((tableName: string) => {
+      if (tableName === 'pending_alerts') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+      }
       if (tableName !== 'transactions') return {};
       callCount++;
       if (callCount === 1) {
@@ -858,6 +867,9 @@ describe('processPendingTransactions', () => {
 
     let callCount = 0;
     mockFrom.mockImplementation((tableName: string) => {
+      if (tableName === 'pending_alerts') {
+        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+      }
       if (tableName !== 'transactions') return {};
       callCount++;
       if (callCount === 1) {

@@ -87,6 +87,25 @@ const Transactions: React.FC = () => {
   const [isPendingNav, setIsPendingNav] = useState(false);
   const navLoadedRef = useRef(false);
 
+  const [refreshingPending, setRefreshingPending] = useState(false);
+
+  const handleRefreshPending = async () => {
+    setRefreshingPending(true);
+    try {
+      const result = await processPendingTransactions();
+      Toast.show({
+        content: `处理完成：${result.processedCount} 笔成功${result.errors.length > 0 ? `，${result.errors.length} 笔失败` : ''}`,
+        duration: 3000,
+      });
+      await refresh();
+      await refreshHoldings();
+    } catch {
+      Toast.show({ content: '刷新失败', position: 'bottom' });
+    } finally {
+      setRefreshingPending(false);
+    }
+  };
+
   const [fundSearchText, setFundSearchText] = useState('');
   const [showFundDropdown, setShowFundDropdown] = useState(false);
 
@@ -471,6 +490,16 @@ const Transactions: React.FC = () => {
         style={{ marginBottom: 12 }}
       >
         <AddOutline /> 添加交易
+      </Button>
+
+      <Button
+        block
+        color="default"
+        loading={refreshingPending}
+        onClick={handleRefreshPending}
+        style={{ marginBottom: 12 }}
+      >
+        刷新在途交易
       </Button>
 
       <CapsuleTabs

@@ -230,6 +230,31 @@ export interface GridExecution {
   executed_at?: string;
 }
 
+// ============================================
+// 交易批次追溯类型定义
+// ============================================
+
+export interface LotTimelineItem {
+  buyTx: Transaction;
+  sellTx?: Transaction;
+  soldShares: number;
+  profit: number;
+  profitRate: number;
+  holdingDays: number;
+}
+
+export interface LotTimeline {
+  buyTransaction: Transaction;
+  totalShares: number;
+  remainingShares: number;
+  currentNav?: number;
+  currentValue?: number;
+  totalCost: number;
+  floatingProfit?: number;
+  floatingProfitRate?: number;
+  items: LotTimelineItem[];
+}
+
 export type GridLevelStatus = 'triggered' | 'executed' | 'above' | 'sell_triggered';
 
 export interface GridLevelWithStatus extends GridLevel {

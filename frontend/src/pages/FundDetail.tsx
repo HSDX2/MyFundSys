@@ -4,8 +4,10 @@ import { LeftOutline, StarFill } from 'antd-mobile-icons';
 import { fetchFundNav } from '../services/fundApi';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { formatMoney } from '../utils';
+import { groupTransactionsByLot, enrichLotTimelinesWithNav } from '../services/lotTraceService';
 import FundHistoryCard from '../components/FundHistoryCard';
-import type { FundApiData } from '../types';
+import LotTimeline from '../components/LotTimeline';
+import type { FundApiData, Transaction, LotTimeline as LotTimelineType } from '../types';
 import './Layout.css';
 
 interface FundInfo {
@@ -24,6 +26,10 @@ const FundDetail: React.FC = () => {
   const [fundData, setFundData] = useState<FundApiData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [detailTab, setDetailTab] = useState<'history' | 'lots'>('history');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [timelines, setTimelines] = useState<LotTimelineType[]>([]);
+  const [loadingLots, setLoadingLots] = useState(false);
 
   // 解析 hash 获取 fundCode
   useEffect(() => {
@@ -68,6 +74,49 @@ const FundDetail: React.FC = () => {
       loadFundData();
     }
   }, [fundCode]);
+
+  // 加载交易数据（用于批次追溯）
+  useEffect(() => {
+    if (!fundCode || detailTab !== 'lots') return;
+    const loadTransactions = async () => {
+      if (!isSupabaseConfigured()) return;
+      setLoadingLots(true);
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('fund_code', fundCode);
+        if (!error && data) {
+          const mapped: Transaction[] = data.map((t: any) => ({
+            id: t.id,
+            fundId: t.fund_code,
+            fundCode: t.fund_code,
+            fundName: t.fund_name,
+            type: t.type,
+            date: t.date,
+            confirmDate: t.confirm_date || t.date,
+            amount: t.amount,
+            price: t.nav,
+            shares: t.shares,
+            fee: t.fee,
+            status: t.status,
+            source: t.source || 'manual',
+            gridExecutionId: t.grid_execution_id,
+            createdAt: t.created_at,
+          }));
+          setTransactions(mapped);
+          const derived = groupTransactionsByLot(mapped, fundCode);
+          const enriched = await enrichLotTimelinesWithNav(derived);
+          setTimelines(enriched);
+        }
+      } catch {
+        setTimelines([]);
+      } finally {
+        setLoadingLots(false);
+      }
+    };
+    loadTransactions();
+  }, [fundCode, detailTab]);
 
   const loadFundData = async () => {
     try {
@@ -336,8 +385,56 @@ const FundDetail: React.FC = () => {
               </div>
             </Card>
 
-            {/* 4. 历史表现卡片 */}
-            {fundCode && <FundHistoryCard fundCode={fundCode} />}
+            {/* 4. Tab 切换 */}
+            {fundCode && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', gap: 0, marginBottom: 12 }}>
+                  <Button
+                    size="small"
+                    fill={detailTab === 'history' ? 'solid' : 'none'}
+                    color="primary"
+                    onClick={() => setDetailTab('history')}
+                    style={{
+                      flex: 1, borderRadius: '4px 0 0 4px',
+                      fontSize: 13, height: 36,
+                    }}
+                  >
+                    历史表现
+                  </Button>
+                  <Button
+                    size="small"
+                    fill={detailTab === 'lots' ? 'solid' : 'none'}
+                    color="primary"
+                    onClick={() => setDetailTab('lots')}
+                    style={{
+                      flex: 1, borderRadius: '0 4px 4px 0',
+                      fontSize: 13, height: 36,
+                    }}
+                  >
+                    交易批次
+                  </Button>
+                </div>
+
+                {detailTab === 'history' && <FundHistoryCard fundCode={fundCode} />}
+
+                {detailTab === 'lots' && (
+                  <>
+                    {loadingLots ? (
+                      <div style={{ textAlign: 'center', padding: 40 }}>
+                        <SpinLoading style={{ '--size': '36px' }} />
+                        <p style={{ marginTop: 12, color: '#999', fontSize: 13 }}>加载交易数据...</p>
+                      </div>
+                    ) : timelines.length === 0 ? (
+                      <Card bodyStyle={{ padding: '24px 0', textAlign: 'center' }}>
+                        <div style={{ color: '#999', fontSize: 14 }}>暂无交易批次数据</div>
+                      </Card>
+                    ) : (
+                      timelines.map(t => <LotTimeline key={t.buyTransaction.id} timeline={t} />)
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </>
         ) : null}
       </div>

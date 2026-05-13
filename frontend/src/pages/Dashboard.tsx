@@ -3,8 +3,11 @@ import { Card, Toast } from 'antd-mobile';
 import { useHoldings, useTransactions } from '../hooks/useSync';
 import { fetchMarketValuation } from '../services/fundApi';
 import { processPendingTransactions, deriveRealizedLots } from '../services/navUpdateService';
+import { fetchUnresolvedAlertCount } from '../services/alertService';
+import { useRiskMetrics } from '../hooks/useRiskMetrics';
 import { formatMoney, formatPercent, getValuationStatus } from '../utils';
 import TotalAssetsCard from '../components/TotalAssetsCard';
+import ActionCard from '../components/ActionCard';
 import type { MarketValuationData } from '../types';
 import './Layout.css';
 
@@ -12,6 +15,10 @@ const Dashboard: React.FC = () => {
   const { holdings, refresh } = useHoldings();
   const { transactions, refresh: refreshTransactions } = useTransactions();
   const [valuation, setValuation] = useState<MarketValuationData | null>(null);
+  const [alertCount, setAlertCount] = useState(0);
+
+  const pendingCount = transactions.filter(t => t.status === 'pending').length;
+  const { gridTriggeredCount, valuationSignal, loading: riskLoading } = useRiskMetrics(pendingCount);
 
   useEffect(() => {
     loadValuation();
@@ -25,14 +32,13 @@ const Dashboard: React.FC = () => {
         refreshTransactions();
       }
     });
+    fetchUnresolvedAlertCount().then(setAlertCount);
   }, []);
 
-  // 计算在途买入金额
   const pendingBuyAmount = transactions
     .filter(t => t.status === 'pending' && t.type === 'buy')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // 计算已实现盈亏
   const realizedLots = deriveRealizedLots(transactions);
   const realizedPnL = realizedLots.reduce((sum, lot) => sum + lot.profit, 0);
 
@@ -48,14 +54,81 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // 估值状态
   const valuationStatus = valuation ? getValuationStatus(valuation.percentile) : null;
+
+  const actions: { icon: string; title: string; description: string; ctaText: string; onClick: () => void }[] = [];
+
+  if (gridTriggeredCount > 0) {
+    actions.push({
+      icon: '⚡',
+      title: '网格触发',
+      description: `${gridTriggeredCount} 格可买入`,
+      ctaText: '去执行',
+      onClick: () => { window.location.hash = 'strategy'; },
+    });
+  }
+
+  if (pendingCount > 0) {
+    actions.push({
+      icon: '⏳',
+      title: '在途交易',
+      description: `${pendingCount} 笔待确认`,
+      ctaText: '查看',
+      onClick: () => { window.location.hash = 'transactions?type=pending'; },
+    });
+  }
+
+  if (valuationSignal === '低估') {
+    actions.push({
+      icon: '📉',
+      title: '估值偏低',
+      description: '市场处于低估区域',
+      ctaText: '加仓',
+      onClick: () => { window.location.hash = 'funds'; },
+    });
+  }
+
+  if (alertCount > 0) {
+    actions.push({
+      icon: '⚠️',
+      title: '告警',
+      description: `${alertCount} 笔在途交易异常`,
+      ctaText: '查看详情',
+      onClick: () => { window.location.hash = 'transactions'; },
+    });
+  }
+
+  if (valuationSignal === '高估') {
+    actions.push({
+      icon: '📈',
+      title: '估值偏高',
+      description: '注意风险',
+      ctaText: '查看',
+      onClick: () => { window.location.hash = 'funds'; },
+    });
+  }
 
   return (
     <div className="page-container">
       <h1 className="page-title">基金投资管理系统</h1>
 
-      {/* 市场估值卡片 */}
+      {actions.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            overflowX: 'auto',
+            paddingBottom: 8,
+            marginBottom: 12,
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {actions.map((action, i) => (
+            <ActionCard key={i} {...action} />
+          ))}
+        </div>
+      )}
+
       {valuation && (
         <div
           className="valuation-indicator"
@@ -102,10 +175,8 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* 资产总览 */}
       <TotalAssetsCard holdings={holdings} pendingBuyAmount={pendingBuyAmount} realizedPnL={realizedPnL} />
 
-      {/* 持仓概览 */}
       <Card title="持仓概览" className="card">
         {holdings.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>

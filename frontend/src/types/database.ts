@@ -154,6 +154,31 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['grid_executions']['Insert']>;
       };
+      pending_alerts: {
+        Row: {
+          id: string;
+          transaction_id: string;
+          fund_code: string;
+          confirm_date: string;
+          reason: string;
+          detail: string;
+          status: string;
+          created_at: string;
+          resolved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          transaction_id: string;
+          fund_code: string;
+          confirm_date: string;
+          reason: string;
+          detail: string;
+          status?: string;
+          created_at?: string;
+          resolved_at?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['pending_alerts']['Insert']>;
+      };
     };
   };
 }

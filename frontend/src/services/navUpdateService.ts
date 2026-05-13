@@ -7,6 +7,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { fetchFundNav, fetchFundHistory } from './fundApi';
 import { formatLocalDate } from '../utils/csv';
+import { createAlert } from './alertService';
 import type { Holding, Transaction } from '../types';
 
 // ============================================
@@ -681,11 +682,18 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
   let processedCount = 0;
 
   for (const transaction of pendingTransactions) {
+    const confirmDate = transaction.confirm_date || transaction.date;
     try {
-      const confirmDate = transaction.confirm_date || transaction.date;
       const cacheKey = `${transaction.fund_code}_${confirmDate}`;
       const navInfo = navCache.get(cacheKey);
       if (!navInfo) {
+        await createAlert({
+          transactionId: transaction.id,
+          fundCode: transaction.fund_code,
+          confirmDate,
+          reason: 'no_nav_data',
+          detail: `无法获取 ${transaction.fund_code} 在 ${confirmDate} 的净值`,
+        });
         errors.push(`${transaction.fund_code}: 无法获取净值`);
         continue;
       }
@@ -699,6 +707,13 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
         if (confirmDateObj < today) {
           const daysSinceConfirm = Math.floor((today.getTime() - confirmDateObj.getTime()) / (1000 * 60 * 60 * 24));
           if (daysSinceConfirm > 5) {
+            await createAlert({
+              transactionId: transaction.id,
+              fundCode: transaction.fund_code,
+              confirmDate,
+              reason: 'nav_date_mismatch',
+              detail: `净值日期(${navInfo.navDate})早于确认日期(${confirmDate})超过5天`,
+            });
             continue;
           }
         } else {
@@ -732,6 +747,13 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
       processedCount++;
     } catch (error) {
       const msg = `${transaction.fund_code}: ${error instanceof Error ? error.message : String(error)}`;
+      await createAlert({
+        transactionId: transaction.id,
+        fundCode: transaction.fund_code,
+        confirmDate,
+        reason: 'api_error',
+        detail: msg,
+      });
       errors.push(msg);
     }
   }
