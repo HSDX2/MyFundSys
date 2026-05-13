@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Progress } from 'antd-mobile';
+import { Card } from 'antd-mobile';
+import { ProgressBar } from 'antd-mobile';
 import type { LotTimeline } from '../types';
 
 interface LotTimelineProps {
@@ -51,7 +52,7 @@ const LotTimeline: React.FC<LotTimelineProps> = ({ timeline }) => {
       </div>
 
       <div style={{ marginBottom: 10 }}>
-        <Progress
+        <ProgressBar
           percent={percent}
           style={{ '--track-width': '8px', '--fill-color': sellRatio > 0.5 ? '#ff4d4f' : '#1677ff' }}
         />

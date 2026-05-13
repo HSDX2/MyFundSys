@@ -5,7 +5,7 @@
 
 # MyFundSys
 
-**Lot-level fund portfolio tracking with automatic NAV reconciliation** — every buy is tracked as an independent lot, sells match by lowest cost, and pending trades auto-confirm when NAV is published.
+**Lot-level fund portfolio with NAV auto-reconciliation, dashboard cockpit, and grid trading** — every buy is tracked as an independent lot, sells match by lowest cost, pending trades auto-confirm, and grid strategies execute with full traceability.
 
 [Live Demo](https://twmissingu.github.io/MyFundSys/) · [Architecture](#architecture) · [Quick Start](#quick-start)
 
@@ -15,14 +15,16 @@ Most fund tracking apps show you a single average cost per fund. MyFundSys track
 
 ## Features
 
+- **Portfolio Cockpit** — dashboard with action cards, risk dashboard (deployment rate, concentration, valuation signal), total asset trend
 - **Lot-based accounting** — each buy is an independent lot with its own cost basis
-- **Smart sell matching** — sells deduct from the lowest-cost lot first (tax-efficient)
-- **Pending trade auto-confirm** — T+1 trades auto-complete when NAV is published
+- **Lot Lifecycle Traceability** — per-buy timeline showing partial sells, realized P&L, holding days, and remaining floating P&L
+- **Smart sell matching** — sells deduct from the lowest-cost lot first (cost-averaging efficient)
+- **Pending trade auto-confirm** — T+1 trades auto-complete when NAV is published; failure alerts with manual NAV entry fallback
 - **Realized P&L tracking** — win rate, cumulative gains, holding days per lot
 - **Cloud sync** — Supabase PostgreSQL, multi-device sync
 - **Market valuation** — PE/PB temperature gauge, auto-updated every 2 hours
-- **Fund search & detail** — search by code/name, historical NAV charts with MACD/KDJ
-- 🎯 **Grid Trading** — define grid parameters, execute trades, track grid-level P&L
+- **Fund search & detail** — search by code/name, historical NAV charts with MACD/KDJ/MA5/10/20
+- 🎯 **Grid Trading** — define grid parameters (small/medium/large), ladder chart, auto-detect triggers, one-click execute
 - 📤 **CSV/JSON import/export** — full data backup and batch operations
 - **Mobile-first UI** — responsive design with Ant Design Mobile
 
@@ -95,7 +97,7 @@ npm install
 cp .env.example .env.local
 
 # 3. Run tests
-npm test                    # 474 tests, Vitest
+npm test                    # 502+ tests, Vitest
 npm run test:e2e            # Playwright E2E
 
 # 4. Build
@@ -109,9 +111,14 @@ npm run deploy              # Push to gh-pages branch
 | File | Purpose |
 |------|---------|
 | `CLAUDE.md` | Full project guidance, architecture, conventions |
-| `src/services/navUpdateService.ts` | Core business logic: lot derivation, sell matching |
-| `src/services/fundApi.ts` | Fund data API with caching |
-| `src/hooks/useSync.ts` | Data access hooks (holdings from transactions) |
+| `src/services/navUpdateService.ts` | Core business logic: lot derivation, sell matching, pending processing |
+| `src/services/fundApi.ts` | Fund data API with NAV/market/valuation caching |
+| `src/services/lotTraceService.ts` | Per-lot lifecycle grouping for traceability view |
+| `src/services/alertService.ts` | Pending alert CRUD (nav_date_mismatch / no_nav_data / api_error) |
+| `src/services/gridService.ts` | Grid strategy CRUD, execution, status derivation |
+| `src/hooks/useSync.ts` | Data access hooks (holdings derived from transactions) |
+| `src/hooks/useRiskMetrics.ts` | Portfolio risk aggregation (assets, deployment, concentration, valuation signal) |
+| `src/hooks/useGrid.ts` | Grid strategy hooks with execution and liquidation
 
 ## Testing
 
@@ -122,7 +129,7 @@ npx vitest run src/__tests__/services/fundApi.test.ts   # Single file
 npm run test:e2e                    # Playwright E2E
 ```
 
-**Framework**: Vitest 4 + @testing-library/react + fake-indexeddb
+**Framework**: Vitest 4 + @testing-library/react — **502+ tests, 19 test files**
 
 ## Database Schema
 
@@ -134,6 +141,7 @@ npm run test:e2e                    # Playwright E2E
 | `fund_cache` | Search cache |
 | `grid_strategies` | Grid trading strategy configurations |
 | `grid_executions` | Grid trade execution records |
+| `pending_alerts` | Pending transaction NAV mismatch alerts |
 
 RLS enabled with ALLOW ALL policy (single-user mode).
 

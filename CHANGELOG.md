@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-05-13
+
+### Added
+- **投资组合驾驶舱** — Dashboard 重构，风险仪表盘（仓位/集中度/估值信号）、行动卡片（网格触发/在途交易/告警），502 测试覆盖
+- **交易全链路追溯** — 按买入批次聚合生命周期，FundDetail 新增"交易批次"Tab，逐批展示买入→部分卖出→剩余浮盈
+- **净值更新异常告警** — pending_alerts 表、processPendingTransactions 写入告警、手动输入净值/忽略/删除三操作
+- **在途交易手动刷新按钮** — Transactions 页新增一键刷新 pending 交易
+
+### Fixed
+- 三轮代码审核 23+2 个 bug（成本按比例计算、gridExecutionId 回填、日期比较、除零保护等）
+
+### Changed
+- 测试从 470 增长到 502，19 个测试文件
+- useRiskMetrics 从外部接收估值百分位，消除 Dashboard 重复请求
+
 ## [2.1.0] - 2026-05-07
 
 ### Added

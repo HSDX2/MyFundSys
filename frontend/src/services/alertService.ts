@@ -20,19 +20,19 @@ export async function createAlert(alert: {
   detail: string;
 }): Promise<void> {
   if (!isSupabaseConfigured()) return;
-  await supabase.from('pending_alerts').insert({
+  await (supabase.from('pending_alerts') as any).insert({
     transaction_id: alert.transactionId,
     fund_code: alert.fundCode,
     confirm_date: alert.confirmDate,
     reason: alert.reason,
     detail: alert.detail,
-  } as any);
+  });
 }
 
 export async function fetchAlerts(): Promise<PendingAlert[]> {
   if (!isSupabaseConfigured()) return [];
-  const { data, error } = await supabase
-    .from('pending_alerts')
+  const { data, error } = await (supabase
+    .from('pending_alerts') as any)
     .select('*')
     .order('created_at', { ascending: false });
   if (error) return [];
@@ -41,16 +41,16 @@ export async function fetchAlerts(): Promise<PendingAlert[]> {
 
 export async function resolveAlert(alertId: string, status: 'resolved' | 'ignored'): Promise<void> {
   if (!isSupabaseConfigured()) return;
-  await supabase.from('pending_alerts').update({
+  await (supabase.from('pending_alerts') as any).update({
     status,
     resolved_at: new Date().toISOString(),
-  } as any).eq('id', alertId);
+  }).eq('id', alertId);
 }
 
 export async function fetchUnresolvedAlertCount(): Promise<number> {
   if (!isSupabaseConfigured()) return 0;
-  const { count } = await supabase
-    .from('pending_alerts')
+  const { count } = await (supabase
+    .from('pending_alerts') as any)
     .select('id', { count: 'exact', head: true })
     .eq('status', 'unresolved');
   return count || 0;

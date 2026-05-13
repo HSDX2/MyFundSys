@@ -5,7 +5,7 @@
 
 # MyFundSys — 基金投资管理系统
 
-**批次级基金持仓追踪，净值自动确认** — 每笔买入独立建仓，卖出按最低成本匹配，在途交易净值发布后自动完成结算。
+**批次级基金持仓 + 驾驶舱 + 净值自动确认 + 网格交易** — 每笔买入独立建仓，卖出按最低成本匹配，在途交易自动确认，网格策略一键执行并追溯全链路。
 
 [在线体验](https://twmissingu.github.io/MyFundSys/) · [系统架构](#系统架构) · [快速开始](#快速开始)
 
@@ -15,14 +15,16 @@
 
 ## 核心功能
 
+- **投资组合驾驶舱** — Dashboard 重构，行动卡片（网格触发/在途交易/告警/估值信号）、风险仪表盘（仓位/集中度/估值）
 - **批次持仓管理** — 每笔买入独立追踪，精确计算浮动/已实现盈亏
-- **智能卖出匹配** — 按成本最低批次优先卖出（税务优化）
-- **在途交易自动确认** — T+1 交易净值发布后自动完成结算
+- **交易全链路追溯** — FundDetail 新增"交易批次"Tab，按买入批次可视化展示卖出记录和浮盈
+- **智能卖出匹配** — 按成本最低批次优先卖出（成本平均化）
+- **在途交易自动确认** — T+1 交易净值发布后自动结算；失败时告警并支持手动输入净值
 - **落袋为安** — 已实现盈亏追踪，胜率、持有天数、累计收益统计
 - **云端同步** — Supabase PostgreSQL，手机/电脑多设备同步
 - **市场估值** — PE/PB 估值温度计，每 2 小时自动更新
-- **基金搜索与详情** — 按代码/名称搜索，历史净值走势图（MACD/KDJ 技术指标）
-- 🎯 **网格交易策略** — 定义网格参数、执行交易、追踪网格级盈亏
+- **基金搜索与详情** — 按代码/名称搜索，历史净值走势图（MACD/KDJ/MA5/10/20 技术指标）
+- 🎯 **网格交易策略** — 小/中/大网参数配置、阶梯图展示、自动检测触发、一键执行
 - 📤 **CSV/JSON 导入导出** — 完整数据备份和批量操作
 - **移动端优先** — 响应式设计，Ant Design Mobile 组件库
 
@@ -95,7 +97,7 @@ npm install
 cp .env.example .env.local
 
 # 3. 运行测试
-npm test                    # 474 个测试，Vitest 框架
+npm test                    # 502+ 个测试，Vitest 框架
 npm run test:e2e            # Playwright E2E 测试
 
 # 4. 构建
@@ -109,9 +111,14 @@ npm run deploy              # 推送到 gh-pages 分支
 | 文件 | 用途 |
 |------|------|
 | `CLAUDE.md` | 完整项目指南、架构、约定 |
-| `src/services/navUpdateService.ts` | 核心业务逻辑：批次派生、卖出匹配 |
-| `src/services/fundApi.ts` | 基金数据 API（带缓存） |
+| `src/services/navUpdateService.ts` | 核心业务逻辑：批次派生、卖出匹配、在途处理 |
+| `src/services/fundApi.ts` | 基金数据 API（净值/市场/缓存） |
+| `src/services/lotTraceService.ts` | 按批次分组交易生命周期，用于追溯视图 |
+| `src/services/alertService.ts` | 净值告警 CRUD（nav_date_mismatch / no_nav_data / api_error） |
+| `src/services/gridService.ts` | 网格策略 CRUD、执行、状态推导 |
 | `src/hooks/useSync.ts` | 数据访问 hooks（从交易派生持仓） |
+| `src/hooks/useRiskMetrics.ts` | 组合风险聚合（资产/仓位/集中度/估值信号） |
+| `src/hooks/useGrid.ts` | 网格策略 hooks（执行、清仓） |
 
 ## 测试
 
@@ -122,7 +129,7 @@ npx vitest run src/__tests__/services/fundApi.test.ts   # 单个文件
 npm run test:e2e                    # Playwright E2E
 ```
 
-**框架**：Vitest 4 + @testing-library/react + fake-indexeddb
+**框架**：Vitest 4 + @testing-library/react — **502+ 个测试，19 个测试文件**
 
 ## 数据库表
 
@@ -134,6 +141,7 @@ npm run test:e2e                    # Playwright E2E
 | `fund_cache` | 搜索缓存 |
 | `grid_strategies` | 网格交易策略配置 |
 | `grid_executions` | 网格交易执行记录 |
+| `pending_alerts` | 在途交易净值匹配异常告警 |
 
 RLS 已启用，策略为 ALLOW ALL（单用户模式）。
 
