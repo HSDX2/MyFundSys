@@ -9,22 +9,17 @@ const CACHE_DURATION = 5 * 60 * 1000;
 const navCache = new Map<string, { data: FundApiData; timestamp: number }>();
 
 export async function fetchFundNav(fundCode: string): Promise<FundApiData | null> {
-  try {
-    const cached = navCache.get(fundCode);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.data;
-    }
-
-    const data = await fetchFromEastMoney(fundCode);
-    if (data) {
-      navCache.set(fundCode, { data, timestamp: Date.now() });
-      return data;
-    }
-    return null;
-  } catch (err) {
-    console.error("fetchFundNav failed:", err);
-    return null;
+  const cached = navCache.get(fundCode);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
   }
+
+  const data = await fetchFromEastMoney(fundCode).catch(() => null);
+  if (data) {
+    navCache.set(fundCode, { data, timestamp: Date.now() });
+    return data;
+  }
+  return null;
 }
 
 async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null> {
@@ -39,39 +34,15 @@ async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null>
     if (error) throw error;
     if (data) {
       if (data.estimateNav && data.estimateRate !== undefined) {
-        // 估算净值：显示从上一交易日确认净值到今日估算净值的涨跌
         return {
-          code: data.code,
-          name: data.name,
-          nav: data.nav,
-          navDate: data.navDate,
+          code: data.code, name: data.name, nav: data.nav, navDate: data.navDate,
           dailyChange: data.estimateNav - data.nav,
           dailyChangeRate: data.estimateRate,
         };
       }
 
-      // 无估算数据时，从历史净值中获取实际日涨跌幅
-      const historyData = await fetchFundHistory(fundCode, 5, 1, '');
-      if (historyData.length >= 1) {
-        const latestHistory = historyData[0];
-        const divisor = 1 + latestHistory.dailyChangeRate / 100;
-        return {
-          code: data.code,
-          name: data.name,
-          nav: data.nav,
-          navDate: data.navDate,
-          dailyChange: divisor !== 0
-            ? latestHistory.nav - latestHistory.nav / divisor
-            : 0,
-          dailyChangeRate: latestHistory.dailyChangeRate,
-        };
-      }
-
       return {
-        code: data.code,
-        name: data.name,
-        nav: data.nav,
-        navDate: data.navDate,
+        code: data.code, name: data.name, nav: data.nav, navDate: data.navDate,
         dailyChange: 0,
         dailyChangeRate: 0,
       };

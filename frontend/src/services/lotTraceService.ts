@@ -97,11 +97,13 @@ export function groupTransactionsByLot(
 
   return lots.map(lot => {
     const buyTx = buys.find(b => b.id === lot.id)!;
+    const totalSoldCost = lot.items.reduce((s, i) => s + i.soldShares * lot.cost, 0);
     return {
       buyTransaction: buyTx,
       totalShares: lot.shares,
       remainingShares: lot.remainingShares,
       totalCost: lot.remainingShares * lot.cost,
+      totalSoldCost,
       items: lot.items,
     };
   });

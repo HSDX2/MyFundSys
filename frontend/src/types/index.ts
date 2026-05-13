@@ -250,6 +250,7 @@ export interface LotTimeline {
   currentNav?: number;
   currentValue?: number;
   totalCost: number;
+  totalSoldCost?: number;
   floatingProfit?: number;
   floatingProfitRate?: number;
   items: LotTimelineItem[];

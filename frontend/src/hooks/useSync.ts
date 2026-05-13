@@ -56,23 +56,16 @@ export function useSyncStatus() {
 
   const triggerSync = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
-    
     setStatus(s => ({ ...s, isSyncing: true }));
-    
     try {
-      await supabase.from('transactions').select('*');
-
+      const { error } = await supabase.from('favorite_funds').select('id', { count: 'exact', head: true }).limit(1);
+      if (error) throw error;
       setStatus(s => ({
-        ...s,
-        isSyncing: false,
-        lastSync: new Date(),
-        lastSyncTime: new Date(),
-        lastSyncError: null,
-        pendingChanges: 0,
+        ...s, isSyncing: false, lastSync: new Date(), lastSyncTime: new Date(),
+        lastSyncError: null, pendingChanges: 0,
       }));
     } catch (err) {
       const msg = err instanceof Error ? err.message : '同步失败';
-      console.error('Sync failed:', err);
       setStatus(s => ({ ...s, isSyncing: false, lastSyncError: msg }));
     }
   }, []);

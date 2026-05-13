@@ -4,8 +4,11 @@ import { AddOutline, CloseOutline } from 'antd-mobile-icons';
 
 import { useTransactions, useHoldings } from '../hooks/useSync';
 import { addTransactionWithHoldingUpdate, processPendingTransactions, canDeleteTransaction } from '../services/navUpdateService';
+import { fetchAlerts, resolveAlert } from '../services/alertService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { searchByCode, fetchFundNav, fetchFundHistory } from '../services/fundApi';
+import PendingAlertCard from '../components/PendingAlertCard';
+import type { PendingAlert } from '../services/alertService';
 import type { FundSearchResult } from '../types';
 import { formatMoney, formatDate, isTradeDay, getNextTradeDay } from '../utils';
 import { formatLocalDate } from '../utils/csv';
@@ -88,6 +91,7 @@ const Transactions: React.FC = () => {
   const navLoadedRef = useRef(false);
 
   const [refreshingPending, setRefreshingPending] = useState(false);
+  const [alerts, setAlerts] = useState<PendingAlert[]>([]);
 
   const handleRefreshPending = async () => {
     setRefreshingPending(true);
@@ -322,7 +326,31 @@ const Transactions: React.FC = () => {
         refreshHoldings();
       }
     });
+    fetchAlerts().then(setAlerts);
   }, []);
+
+  const handleResolveAlert = async (alertId: string) => {
+    await resolveAlert(alertId, 'resolved');
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+    await refresh();
+    await refreshHoldings();
+  };
+
+  const handleIgnoreAlert = async (alertId: string) => {
+    await resolveAlert(alertId, 'ignored');
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+  };
+
+  const handleDeleteTransactionFromAlert = async (transactionId: string) => {
+    try {
+      await removeTransaction(transactionId);
+      setAlerts(prev => prev.filter(a => a.transactionId !== transactionId));
+      await refresh();
+      await refreshHoldings();
+    } catch {
+      Toast.show({ content: '删除失败', position: 'bottom' });
+    }
+  };
 
   const handleAddTransaction = async (values: any) => {
     try {
@@ -587,6 +615,20 @@ const Transactions: React.FC = () => {
               无匹配的基金
             </div>
           )}
+        </div>
+      )}
+
+      {alerts.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          {alerts.map(a => (
+            <PendingAlertCard
+              key={a.id}
+              alert={a}
+              onResolve={handleResolveAlert}
+              onIgnore={handleIgnoreAlert}
+              onDeleteTransaction={handleDeleteTransactionFromAlert}
+            />
+          ))}
         </div>
       )}
 

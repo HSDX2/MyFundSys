@@ -32,7 +32,8 @@ export const GridExecutionSheet: React.FC<GridExecutionSheetProps> = ({
       Toast.show({ content: action === 'buy' ? '买入记录已创建' : '卖出记录已创建', position: 'bottom' });
       onClose();
     } catch (err) {
-      Toast.show({ content: '执行失败，请稍后重试', position: 'bottom' });
+      const msg = err instanceof Error ? err.message : '执行失败';
+      Toast.show({ content: msg, position: 'bottom' });
     } finally {
       setExecuting(false);
     }

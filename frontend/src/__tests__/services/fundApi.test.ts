@@ -233,7 +233,7 @@ describe('fetchFundNav', () => {
     expect(mockInvoke).toHaveBeenCalledTimes(1);
   });
 
-  it('无估算数据时从历史净值获取实际涨跌幅', async () => {
+  it('无估算数据时返回0涨跌幅（不再额外调用历史API）', async () => {
     mockInvoke.mockResolvedValueOnce({
       data: {
         code: '000001',
@@ -244,31 +244,16 @@ describe('fetchFundNav', () => {
       error: null,
     });
 
-    mockInvoke.mockResolvedValueOnce({
-      data: [
-        {
-          date: '2024-01-15',
-          nav: 1.5,
-          accNav: 2.0,
-          dailyChangeRate: 2.5,
-          buyStatus: '开放',
-          sellStatus: '开放',
-        },
-      ],
-      error: null,
-    });
+    clearNavCache();
 
     const result = await fetchFundNav('000001');
 
-    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
     expect(mockInvoke).toHaveBeenNthCalledWith(1, 'fund-nav', { body: { code: '000001' } });
-    expect(mockInvoke).toHaveBeenNthCalledWith(2, 'fund-history', {
-      body: { code: '000001', pageSize: 5, pageIndex: 1, startDate: '', endDate: '' },
-    });
 
     expect(result).not.toBeNull();
-    expect(result!.dailyChangeRate).toBe(2.5);
-    expect(result!.dailyChange).toBeCloseTo(0.0366, 4);
+    expect(result!.dailyChangeRate).toBe(0);
+    expect(result!.dailyChange).toBe(0);
   });
 
   it('Supabase 返回 error 时返回 null', async () => {
@@ -296,20 +281,17 @@ describe('fetchFundNav', () => {
     expect(result!.dailyChangeRate).toBe(0);
   });
 
-  it('历史净值 dailyChangeRate 为 -100 时 dailyChange 为 0', async () => {
+  it('无估算数据且无历史数据时返回涨跌幅0', async () => {
     mockInvoke.mockResolvedValueOnce({
       data: { code: '000001', name: '测试', nav: 1.0, navDate: '2024-01-01' },
       error: null,
     });
-    mockInvoke.mockResolvedValueOnce({
-      data: [{ date: '2024-01-01', nav: 1.0, accNav: 1.0, dailyChangeRate: -100, buyStatus: '开放', sellStatus: '开放' }],
-      error: null,
-    });
+    clearNavCache();
 
     const result = await fetchFundNav('000001');
     expect(result).not.toBeNull();
     expect(result!.dailyChange).toBe(0);
-    expect(result!.dailyChangeRate).toBe(-100);
+    expect(result!.dailyChangeRate).toBe(0);
   });
 
   it('缓存过期后重新调用 Supabase', async () => {
