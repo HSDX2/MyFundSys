@@ -175,7 +175,7 @@ Hash-based routing（非 react-router routes），Layout.tsx 底部 TabBar 导�
 
 - **Framework**: Vitest v4 + @testing-library/react + fake-indexeddb
 - **Setup file**: `src/__tests__/setup.ts` (imports jest-dom + fake-indexeddb/auto)
-- **Test count**: 502 test cases, 19 test files
+- **Test count**: Web 502 tests, 19 files + Android 24 tests, 4 files = **526 total**
 
 **Mock pattern** — use `vi.hoisted()` for mocks that must exist before module load:
 

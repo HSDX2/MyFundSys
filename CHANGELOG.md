@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-05-13
+
+### Added
+- **Android App 测试覆盖** — 24 tests, 4 suites (Jest + jest-expo)，覆盖核心业务逻辑和认证 hooks
+
+### Changed
+- 全项目测试从 502 增长到 **526**（Web 502 + Android 24）
+- README / AGENTS.md 更新至最新测试数和架构说明
+
 ## [2.2.1] - 2026-05-13
 
 ### Fixed

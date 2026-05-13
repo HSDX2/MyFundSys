@@ -129,7 +129,17 @@ npx vitest run src/__tests__/services/fundApi.test.ts   # Single file
 npm run test:e2e                    # Playwright E2E
 ```
 
-**Framework**: Vitest 4 + @testing-library/react — **502+ tests, 19 test files**
+**Framework**: Vitest 4 + @testing-library/react — **526 tests total** (Web 502 + Android 24)
+
+## Android App
+
+React Native (Expo) client in `android-app/`, sharing the same Supabase database and Edge Functions:
+
+```bash
+cd android-app
+# Fill Supabase credentials in app.json → extra
+npx expo start
+```
 
 ## Database Schema
 

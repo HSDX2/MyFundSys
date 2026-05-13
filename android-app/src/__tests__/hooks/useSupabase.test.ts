@@ -13,10 +13,11 @@ import { renderHook, act } from '@testing-library/react-native';
 describe('useAuthStatus', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (mockGetItem as any).mockResolvedValue(undefined);
   });
 
   it('loading is true initially, then false after check', async () => {
-    mockGetItem.mockResolvedValue(null);
+    (mockGetItem as any).mockResolvedValue(undefined);
     const { result } = renderHook(() => useAuthStatus());
     expect(result.current.loading).toBe(true);
     // Wait for effect
@@ -27,10 +28,10 @@ describe('useAuthStatus', () => {
 
   it('returns authenticated=true when auth token exists and not expired', async () => {
     const recent = (Date.now() - 1000).toString(); // 1 second ago
-    mockGetItem.mockImplementation((key: string) => {
+    (mockGetItem as any).mockImplementation((key: string) => {
       if (key === 'myfundsys_auth') return Promise.resolve('true');
       if (key === 'myfundsys_auth_time') return Promise.resolve(recent);
-      return Promise.resolve(null);
+      return Promise.resolve(undefined);
     });
     const { result } = renderHook(() => useAuthStatus());
     await new Promise(r => setTimeout(r, 50));
@@ -39,10 +40,10 @@ describe('useAuthStatus', () => {
 
   it('returns authenticated=false when token expired (30 days)', async () => {
     const old = (Date.now() - 31 * 24 * 60 * 60 * 1000).toString();
-    mockGetItem.mockImplementation((key: string) => {
+    (mockGetItem as any).mockImplementation((key: string) => {
       if (key === 'myfundsys_auth') return Promise.resolve('true');
       if (key === 'myfundsys_auth_time') return Promise.resolve(old);
-      return Promise.resolve(null);
+      return Promise.resolve(undefined);
     });
     const { result } = renderHook(() => useAuthStatus());
     await new Promise(r => setTimeout(r, 50));
