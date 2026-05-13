@@ -1,0 +1,770 @@
+/**
+ * 净值更新服务
+ * 
+ * Supabase 为唯一数据源
+ */
+
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { fetchFundNav, fetchFundHistory } from './fundApi';
+import { formatLocalDate } from '../utils/csv';
+import { createAlert } from './alertService';
+import type { Holding, Transaction } from '../types';
+
+// ============================================
+// 批次（Lot）类型定义
+// ============================================
+
+export interface Lot {
+  id: string;              // 原始买入交易ID
+  fundCode: string;
+  fundName: string;
+  shares: number;          // 原始买入份额
+  remainingShares: number; // 剩余份额
+  cost: number;            // 买入时净值
+  date: string;            // 买入日期
+  isPending: boolean;      // 是否在途（净值未确认）
+  amount?: number;         // 在途买入金额（仅 isPending=true 时有值）
+  gridExecutionId?: string; // 关联网格执行记录（网格交易精确匹配）
+}
+
+export interface RealizedLot {
+  id: string;              // 原始买入交易ID
+  fundCode: string;
+  fundName: string;
+  buyDate: string;
+  sellDate: string;
+  shares: number;
+  buyNav: number;
+  sellNav: number;
+  cost: number;            // 买入成本 = shares × buyNav
+  revenue: number;         // 卖出收入 = shares × sellNav
+  profit: number;
+  profitRate: number;
+  holdingDays: number;
+}
+
+// ============================================
+// 批次派生：从交易记录派生当前持仓批次
+// ============================================
+
+export function deriveLots(transactions: Transaction[]): Lot[] {
+  const buyTxs = transactions
+    .filter(t => t.type === 'buy')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const sellTxs = transactions
+    .filter(t => t.type === 'sell' && t.status === 'completed')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // 创建买入批次（包含在途买入）
+  const lots: Lot[] = buyTxs.map(tx => ({
+    id: tx.id,
+    fundCode: tx.fundCode,
+    fundName: tx.fundName,
+    shares: tx.shares,
+    remainingShares: tx.status === 'completed' ? tx.shares : 0,
+    cost: tx.price,
+    date: tx.date,
+    isPending: tx.status === 'pending',
+    amount: tx.status === 'pending' ? tx.amount : undefined,
+    gridExecutionId: tx.gridExecutionId,
+  }));
+
+  // 匹配卖出：优先按 gridExecutionId 精确匹配，fallback 按成本升序
+  for (const sell of sellTxs) {
+    if (sell.shares <= 0) continue;
+    let remainingToSell = sell.shares;
+
+    // 1. 优先精确匹配：如果 sell 指定了 gridExecutionId，只卖该 lot
+    if (sell.gridExecutionId) {
+      const targetLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending && l.gridExecutionId === sell.gridExecutionId)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of targetLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
+    }
+
+    // 2. Fallback：剩余部分按成本升序匹配（手动交易或无 gridExecutionId 的场景）
+    if (remainingToSell > 0) {
+      const fundLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of fundLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
+    }
+  }
+
+  // 返回所有批次（包含在途）
+  return lots.filter(l => l.remainingShares > 0 || l.isPending);
+}
+
+// ============================================
+// 已实现盈亏派生：从交易记录派生已卖出批次
+// ============================================
+
+export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
+  const buyTxs = transactions
+    .filter(t => t.type === 'buy' && t.status === 'completed')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const sellTxs = transactions
+    .filter(t => t.type === 'sell' && t.status === 'completed')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const lots: Lot[] = buyTxs.map(tx => ({
+    id: tx.id,
+    fundCode: tx.fundCode,
+    fundName: tx.fundName,
+    shares: tx.shares,
+    remainingShares: tx.shares,
+    cost: tx.price,
+    date: tx.date,
+    isPending: false,
+    gridExecutionId: tx.gridExecutionId,
+  }));
+
+  const realizedLots: RealizedLot[] = [];
+
+  for (const sell of sellTxs) {
+    if (sell.shares <= 0) continue;
+    let remainingToSell = sell.shares;
+
+    // 优先精确匹配
+    if (sell.gridExecutionId) {
+      const targetLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && l.gridExecutionId === sell.gridExecutionId)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of targetLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+
+        const cost = sellFromLot * lot.cost;
+        const revenue = sellFromLot * sell.price;
+        const profit = revenue - cost;
+        const profitRate = cost > 0 ? profit / cost : 0;
+        const holdingDays = Math.round((new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24));
+
+        realizedLots.push({
+          id: lot.id,
+          fundCode: lot.fundCode,
+          fundName: lot.fundName,
+          buyDate: lot.date,
+          sellDate: sell.date,
+          shares: sellFromLot,
+          buyNav: lot.cost,
+          sellNav: sell.price,
+          cost,
+          revenue,
+          profit,
+          profitRate,
+          holdingDays,
+        });
+      }
+    }
+
+    // Fallback
+    if (remainingToSell > 0) {
+      const fundLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of fundLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+
+        // 每次卖出都记录已实现盈亏（包括部分卖出）
+        const sellDate = new Date(sell.date);
+        const buyDate = new Date(lot.date);
+        const holdingDays = Math.max(0, Math.round((sellDate.getTime() - buyDate.getTime()) / (1000 * 60 * 60 * 24)));
+        const cost = sellFromLot * lot.cost;
+        const revenue = sellFromLot * sell.price;
+        const profit = revenue - cost;
+        const profitRate = cost > 0 ? profit / cost : 0;
+
+        realizedLots.push({
+          id: lot.id,
+          fundCode: lot.fundCode,
+          fundName: lot.fundName,
+          buyDate: lot.date,
+          sellDate: sell.date,
+          shares: sellFromLot,
+          buyNav: lot.cost,
+          sellNav: sell.price,
+          cost,
+          revenue,
+          profit,
+          profitRate,
+          holdingDays,
+        });
+      }
+    }
+  }
+
+  // 按卖出日期倒序
+  return realizedLots.sort((a, b) => b.sellDate.localeCompare(a.sellDate));
+}
+
+// ============================================
+// 持仓汇总：从批次派生基金级汇总
+// ============================================
+
+export interface HoldingSummary {
+  fundCode: string;
+  fundName: string;
+  shares: number;
+  totalCost: number;
+  avgCost: number;
+  currentNav?: number;
+  currentValue?: number;
+  profit?: number;
+  profitRate?: number;
+}
+
+export function summarizeHoldings(lots: Lot[]): HoldingSummary[] {
+  const byFund: Record<string, HoldingSummary> = {};
+
+  for (const lot of lots) {
+    if (!byFund[lot.fundCode]) {
+      byFund[lot.fundCode] = {
+        fundCode: lot.fundCode,
+        fundName: lot.fundName,
+        shares: 0,
+        totalCost: 0,
+        avgCost: 0,
+      };
+    }
+    const summary = byFund[lot.fundCode];
+    summary.shares += lot.remainingShares;
+    summary.totalCost += lot.remainingShares * lot.cost;
+  }
+
+  // 计算平均成本
+  for (const summary of Object.values(byFund)) {
+    summary.avgCost = summary.shares > 0 ? summary.totalCost / summary.shares : 0;
+  }
+
+  return Object.values(byFund);
+}
+
+// ============================================
+// 卖出匹配：按成本最低批次匹配
+// ============================================
+
+export interface SellMatchResult {
+  lotsUsed: { lotId: string; shares: number; cost: number }[];
+  remainingShares: number;
+}
+
+export function matchSellLots(
+  lots: Lot[],
+  fundCode: string,
+  sellShares: number,
+  gridExecutionId?: string
+): SellMatchResult {
+  // 使用副本避免修改输入数组
+  let fundLots = lots
+    .filter(l => l.fundCode === fundCode && l.remainingShares > 0)
+    .map(l => ({ ...l }));
+
+  let remainingToSell = sellShares;
+  const lotsUsed: SellMatchResult['lotsUsed'] = [];
+
+  // 1. 优先精确匹配
+  if (gridExecutionId) {
+    const targetLots = fundLots
+      .filter(l => l.gridExecutionId === gridExecutionId)
+      .sort((a, b) => a.cost - b.cost);
+
+    for (const lot of targetLots) {
+      if (remainingToSell <= 0) break;
+      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+      lotsUsed.push({ lotId: lot.id, shares: sellFromLot, cost: lot.cost });
+      lot.remainingShares -= sellFromLot;
+      remainingToSell -= sellFromLot;
+    }
+  }
+
+  // 2. Fallback
+  if (remainingToSell > 0) {
+    const fallbackLots = fundLots
+      .filter(l => l.remainingShares > 0)
+      .sort((a, b) => a.cost - b.cost);
+
+    for (const lot of fallbackLots) {
+      if (remainingToSell <= 0) break;
+      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+      lotsUsed.push({ lotId: lot.id, shares: sellFromLot, cost: lot.cost });
+      lot.remainingShares -= sellFromLot;
+      remainingToSell -= sellFromLot;
+    }
+  }
+
+  return { lotsUsed, remainingShares: remainingToSell };
+}
+
+// ============================================
+// 删除交易验证：检查是否已被部分卖出
+// ============================================
+
+export interface DeleteCheckResult {
+  canDelete: boolean;
+  reason?: string;
+}
+
+/**
+ * 检查是否可以安全删除某笔交易
+ * 如果是买入交易，检查是否有卖出交易已经匹配了该批次
+ */
+export function canDeleteTransaction(
+  transactions: Transaction[],
+  transactionId: string
+): DeleteCheckResult {
+  const tx = transactions.find(t => t.id === transactionId);
+  if (!tx) return { canDelete: false, reason: '交易不存在' };
+
+  if (tx.type === 'sell') {
+    // 卖出交易：检查是否还有其他卖出依赖它
+    // 简化处理：卖出交易可以删除（会回滚到对应批次）
+    return { canDelete: true };
+  }
+
+  // 买入交易：按日期排序（与 deriveLots 保持一致）
+  const buyTxs = transactions
+    .filter(t => t.type === 'buy' && t.status === 'completed')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const sellTxs = transactions
+    .filter(t => t.type === 'sell' && t.status === 'completed')
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // 模拟批次派生（与 deriveLots 字段一致，支持 gridExecutionId 匹配）
+  const lots = buyTxs.map(b => ({
+    id: b.id,
+    fundCode: b.fundCode,
+    shares: b.shares,
+    remainingShares: b.shares,
+    cost: b.price,
+    gridExecutionId: b.gridExecutionId,
+  }));
+
+  // 模拟卖出匹配（与 deriveLots 保持一致：优先 gridExecutionId，再成本升序）
+  for (const sell of sellTxs) {
+    let remainingToSell = sell.shares;
+
+    // 1. 优先 gridExecutionId 精确匹配
+    if (sell.gridExecutionId) {
+      const targetLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && l.gridExecutionId === sell.gridExecutionId)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of targetLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
+    }
+
+    // 2. Fallback 按成本升序
+    if (remainingToSell > 0) {
+      const fundLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of fundLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
+    }
+  }
+
+  // 检查目标买入批次是否被卖出过
+  const targetLot = lots.find(l => l.id === transactionId);
+  if (targetLot && targetLot.remainingShares < targetLot.shares) {
+    const soldShares = targetLot.shares - targetLot.remainingShares;
+    return {
+      canDelete: false,
+      reason: `该笔买入已有 ${soldShares.toFixed(2)} 份被卖出，无法删除。请先在持仓明细中卖出剩余份额后再删除交易记录。`,
+    };
+  }
+
+  return { canDelete: true };
+}
+
+// ============================================
+// 持仓更新工具函数
+// ============================================
+
+export function updateLocalHoldingAfterTransaction(
+  holding: Holding | undefined,
+  transaction: Transaction
+): { holding: Holding | null; shouldDelete: boolean } {
+  if (!holding) {
+    if (transaction.type === 'sell') {
+      return { holding: null, shouldDelete: false };
+    }
+    return {
+      holding: {
+        id: crypto.randomUUID(),
+        fundId: transaction.fundId,
+        fundCode: transaction.fundCode,
+        fundName: transaction.fundName,
+        shares: transaction.shares,
+        avgCost: transaction.price,
+        totalCost: transaction.amount,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      shouldDelete: false,
+    };
+  }
+
+  const newShares = transaction.type === 'buy'
+    ? holding.shares + transaction.shares
+    : holding.shares - transaction.shares;
+
+  let newTotalCost = transaction.type === 'buy'
+    ? holding.totalCost + transaction.amount
+    : holding.shares > 0
+      ? holding.totalCost * (1 - transaction.shares / holding.shares)
+      : 0;
+
+  if (newTotalCost < 0) {
+    newTotalCost = 0;
+  }
+
+  if (newShares <= 0) {
+    return { holding: null, shouldDelete: true };
+  }
+
+  return {
+    holding: {
+      ...holding,
+      shares: newShares,
+      totalCost: newTotalCost,
+      avgCost: newTotalCost / newShares,
+      updatedAt: new Date().toISOString(),
+    },
+    shouldDelete: false,
+  };
+}
+
+export function reverseTransactionOnHolding(
+  holding: Holding | undefined,
+  transaction: Transaction
+): { holding: Holding | null; shouldDelete: boolean } {
+  if (!holding) {
+    return { holding: null, shouldDelete: false };
+  }
+
+  const newShares = transaction.type === 'buy'
+    ? holding.shares - transaction.shares
+    : holding.shares + transaction.shares;
+
+  const newTotalCost = transaction.type === 'buy'
+    ? holding.totalCost - transaction.amount
+    : holding.shares > 0
+      ? holding.totalCost * (holding.shares + transaction.shares) / holding.shares
+      : transaction.amount;
+
+  if (newShares <= 0) {
+    return { holding: null, shouldDelete: true };
+  }
+
+  return {
+    holding: {
+      ...holding,
+      shares: newShares,
+      totalCost: newTotalCost,
+      avgCost: newTotalCost / newShares,
+      updatedAt: new Date().toISOString(),
+    },
+    shouldDelete: false,
+  };
+}
+
+// ============================================
+// 原子性交易操作
+// ============================================
+
+/**
+ * 添加交易记录并自动更新持仓
+ * @param transaction 交易数据（不含 id 和 createdAt）
+ * @returns 插入结果，包含 transactionId 和 holdingUpdated 状态
+ * @throws 插入失败时抛出错误
+ */
+export async function addTransactionWithHoldingUpdate(
+  transaction: Omit<Transaction, 'id' | 'createdAt'>
+): Promise<{ transactionId: string; holdingUpdated: boolean }> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase 未配置');
+  }
+
+  const transactionId = crypto.randomUUID();
+
+  const txPayload = {
+    id: transactionId,
+    fund_code: transaction.fundCode,
+    fund_name: transaction.fundName,
+    type: transaction.type,
+    shares: transaction.shares,
+    nav: transaction.price,
+    amount: transaction.amount,
+    fee: transaction.fee || 0,
+    date: transaction.date,
+    confirm_date: transaction.confirmDate || null,
+    status: transaction.status || 'completed',
+    source: transaction.source || 'manual',
+    grid_execution_id: transaction.gridExecutionId || null,
+  };
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert(txPayload as any)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`插入交易记录失败: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('插入交易记录成功但未返回数据');
+  }
+
+  return {
+    transactionId: (data as any).id,
+    holdingUpdated: transaction.status === 'completed',
+  };
+}
+
+export async function removeTransactionWithHoldingUpdate(
+  transactionId: string
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+
+  const { data: txData, error: txError } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', transactionId)
+    .limit(1)
+    .maybeSingle();
+  if (txError) {
+    throw new Error(`查询交易失败: ${txError.message}`);
+  }
+  const transaction = txData as any;
+
+  if (!transaction) return;
+
+  const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
+  if (error) {
+    throw new Error(`删除交易失败: ${error.message}`);
+  }
+}
+
+/**
+ * 删除持仓及其关联的所有交易记录
+ * @param holdingId holdings 表中的记录 ID（兼容性参数，实际不使用）
+ * @param fundCode 基金代码，用于定位要删除的交易记录
+ */
+export async function removeHoldingWithTransactions(fundCode: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  if (!fundCode) return;
+
+  // 删除该基金的所有交易记录
+  const { error: txError } = await supabase.from('transactions').delete().eq('fund_code', fundCode);
+  if (txError) throw new Error(`删除交易记录失败: ${txError.message}`);
+  // holdings 表不再使用（从 transactions 派生），无需额外操作
+}
+
+// ============================================
+// 在途交易处理
+// ============================================
+
+export interface ProcessPendingResult {
+  processedCount: number;
+  pendingCount: number;
+  errors: string[];
+}
+
+/**
+ * 处理在途交易
+ * 使用全局标记避免多页面重复调用
+ */
+export async function processPendingTransactions(): Promise<ProcessPendingResult> {
+  // 防止多页面/多组件重复调用
+  if ((window as any).__pendingTransactionsProcessing) {
+    return { processedCount: 0, pendingCount: 0, errors: [] };
+  }
+  (window as any).__pendingTransactionsProcessing = true;
+
+  try {
+    if (!isSupabaseConfigured()) {
+      return { processedCount: 0, pendingCount: 0, errors: [] };
+    }
+
+  const { data: pendingTxData, error: pendingError } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('status', 'pending');
+  if (pendingError) {
+    return { processedCount: 0, pendingCount: 0, errors: [`查询在途交易失败: ${pendingError.message}`] };
+  }
+  const pendingTransactions = pendingTxData as any[] | null;
+
+  if (!pendingTransactions || pendingTransactions.length === 0) {
+    return { processedCount: 0, pendingCount: 0, errors: [] };
+  }
+
+  // 按基金分组，一次性获取历史净值（减少 Edge Function 调用次数）
+  const fundGroups = new Map<string, { confirmDates: string[] }>();
+  for (const tx of pendingTransactions) {
+    const code = tx.fund_code;
+    const confirmDate = tx.confirm_date || tx.date;
+    if (!fundGroups.has(code)) fundGroups.set(code, { confirmDates: [] });
+    fundGroups.get(code)!.confirmDates.push(confirmDate);
+  }
+
+  const navCache = new Map<string, { nav: number; navDate: string }>();
+  const errors: string[] = [];
+
+  for (const [code, group] of fundGroups) {
+    try {
+      const sortedDates = [...new Set(group.confirmDates)].sort();
+      const earliest = sortedDates[0];
+      const today = formatLocalDate(new Date());
+      // 一次性获取从最早确认日到今天的历史净值
+      const history = await fetchFundHistory(code, 100, 1, earliest, today);
+
+      for (const confirmDate of sortedDates) {
+        const cacheKey = `${code}_${confirmDate}`;
+        const match = history.find(h => h.date === confirmDate && h.nav > 0);
+        if (match) {
+          navCache.set(cacheKey, { nav: match.nav, navDate: match.date });
+        }
+      }
+
+      // 无匹配的确认日降级到最新净值
+      const unmatched = sortedDates.filter(d => !navCache.has(`${code}_${d}`));
+      if (unmatched.length > 0) {
+        const navData = await fetchFundNav(code);
+        if (navData && navData.nav > 0) {
+          for (const d of unmatched) {
+            navCache.set(`${code}_${d}`, {
+              nav: navData.nav,
+              navDate: navData.navDate || today,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      errors.push(`${code}: 净值获取失败 — ${err instanceof Error ? err.message : '未知错误'}`);
+    }
+  }
+
+  let processedCount = 0;
+
+  for (const transaction of pendingTransactions) {
+    const confirmDate = transaction.confirm_date || transaction.date;
+    try {
+      const cacheKey = `${transaction.fund_code}_${confirmDate}`;
+      const navInfo = navCache.get(cacheKey);
+      if (!navInfo) {
+        await createAlert({
+          transactionId: transaction.id,
+          fundCode: transaction.fund_code,
+          confirmDate,
+          reason: 'no_nav_data',
+          detail: `无法获取 ${transaction.fund_code} 在 ${confirmDate} 的净值`,
+        });
+        errors.push(`${transaction.fund_code}: 无法获取净值`);
+        continue;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const confirmDateObj = new Date(confirmDate);
+      const navDateObj = new Date(navInfo.navDate);
+
+      if (navDateObj.getTime() < confirmDateObj.getTime()) {
+        if (confirmDateObj < today) {
+          const daysSinceConfirm = Math.floor((today.getTime() - confirmDateObj.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSinceConfirm > 5) {
+            await createAlert({
+              transactionId: transaction.id,
+              fundCode: transaction.fund_code,
+              confirmDate,
+              reason: 'nav_date_mismatch',
+              detail: `净值日期(${navInfo.navDate})早于确认日期(${confirmDate})超过5天`,
+            });
+            continue;
+          }
+        } else {
+          continue;
+        }
+      }
+
+      const tradePrice = navInfo.nav;
+      let shares: number;
+      let amount: number;
+
+      if (transaction.type === 'buy') {
+        amount = transaction.amount;
+        shares = amount / tradePrice;
+      } else {
+        shares = transaction.shares;
+        amount = shares * tradePrice;
+      }
+
+      const { error: updateError } = await (supabase.from('transactions') as any).update({
+        nav: tradePrice,
+        shares,
+        amount,
+        status: 'completed',
+      }).eq('id', transaction.id);
+
+      if (updateError) {
+        throw new Error(`更新失败: ${updateError.message}`);
+      }
+
+      processedCount++;
+    } catch (error) {
+      const msg = `${transaction.fund_code}: ${error instanceof Error ? error.message : String(error)}`;
+      await createAlert({
+        transactionId: transaction.id,
+        fundCode: transaction.fund_code,
+        confirmDate,
+        reason: 'api_error',
+        detail: msg,
+      });
+      errors.push(msg);
+    }
+  }
+
+  return {
+    processedCount,
+    pendingCount: pendingTransactions.length - processedCount,
+    errors,
+  };
+} finally {
+  // 处理完成后重置标记，允许下次调用
+  (window as any).__pendingTransactionsProcessing = false;
+}
+}
