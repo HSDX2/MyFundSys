@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-05-13
+
+### Fixed
+- 两轮 10 次审核修复 28+ 个 bug（fetchFundNav 冗余 try-catch、history 不必要调用、PendingAlertCard 未接入致命 bug、CSV pending 逻辑不一致、CSV 注入防护、filterRecentData 引用返回等）
+- GridExecutionSheet 错误提示透传真实错误信息
+- triggerSync 从全表 SELECT 改为轻量查询
+
+### Changed
+- Android App (Expo) 初始版本发布，与 Web 共享同一数据库
+
 ## [2.2.0] - 2026-05-13
 
 ### Added
