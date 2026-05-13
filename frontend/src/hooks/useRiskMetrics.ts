@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useHoldings } from './useSync';
 import { useGridStrategies } from './useGrid';
-import { fetchMarketValuation } from '../services/fundApi';
 
 export interface RiskMetrics {
   totalAssets: number;
@@ -13,30 +12,9 @@ export interface RiskMetrics {
   loading: boolean;
 }
 
-export function useRiskMetrics(pendingCount: number = 0): RiskMetrics {
+export function useRiskMetrics(pendingCount: number = 0, valuationPercentile?: number | null): RiskMetrics {
   const { holdings, loading: holdingsLoading } = useHoldings();
   const { overviews, loading: gridLoading } = useGridStrategies();
-  const [valuation, setValuation] = useState<number | null>(null);
-  const [valuationLoading, setValuationLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setValuationLoading(true);
-    fetchMarketValuation()
-      .then(data => {
-        if (!cancelled) {
-          setValuation(data.percentile);
-          setValuationLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setValuation(null);
-          setValuationLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, []);
 
   return useMemo(() => {
     const totalAssets = holdings.reduce(
@@ -52,10 +30,10 @@ export function useRiskMetrics(pendingCount: number = 0): RiskMetrics {
     const top3Concentration = totalAssets > 0 ? top3Sum / totalAssets : 0;
 
     let valuationSignal: RiskMetrics['valuationSignal'] = null;
-    if (valuation !== null) {
-      if (valuation < 0.2) {
+    if (valuationPercentile !== null && valuationPercentile !== undefined) {
+      if (valuationPercentile < 0.2) {
         valuationSignal = '低估';
-      } else if (valuation <= 0.8) {
+      } else if (valuationPercentile <= 0.8) {
         valuationSignal = '合理';
       } else {
         valuationSignal = '高估';
@@ -73,7 +51,7 @@ export function useRiskMetrics(pendingCount: number = 0): RiskMetrics {
       valuationSignal,
       pendingCount,
       gridTriggeredCount,
-      loading: holdingsLoading || gridLoading || valuationLoading,
+      loading: holdingsLoading || gridLoading,
     };
-  }, [holdings, overviews, valuation, pendingCount, holdingsLoading, gridLoading, valuationLoading]);
+  }, [holdings, overviews, valuationPercentile, pendingCount, holdingsLoading, gridLoading]);
 }

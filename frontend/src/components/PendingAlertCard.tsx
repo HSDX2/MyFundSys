@@ -4,7 +4,7 @@ import type { PendingAlert } from '../services/alertService';
 
 interface PendingAlertCardProps {
   alert: PendingAlert;
-  onResolve: (id: string) => void;
+  onResolve: (id: string, nav?: number) => void;
   onIgnore: (id: string) => void;
   onDeleteTransaction: (transactionId: string) => void;
 }
@@ -25,11 +25,12 @@ const PendingAlertCard: React.FC<PendingAlertCardProps> = ({ alert, onResolve, o
   };
 
   const handleNavConfirm = () => {
-    if (!navInput.trim()) {
-      Toast.show({ content: '请输入净值', position: 'bottom' });
+    const nav = parseFloat(navInput);
+    if (isNaN(nav) || nav <= 0) {
+      Toast.show({ content: '请输入有效的净值', position: 'bottom' });
       return;
     }
-    onResolve(alert.id);
+    onResolve(alert.id, nav);
     setShowNavDialog(false);
     setNavInput('');
     Toast.show({ content: '已标记为已处理', position: 'bottom' });

@@ -18,7 +18,7 @@ const Dashboard: React.FC = () => {
   const [alertCount, setAlertCount] = useState(0);
 
   const pendingCount = transactions.filter(t => t.status === 'pending').length;
-  const { gridTriggeredCount, valuationSignal, loading: riskLoading } = useRiskMetrics(pendingCount);
+  const { gridTriggeredCount, valuationSignal } = useRiskMetrics(pendingCount, valuation?.percentile);
 
   useEffect(() => {
     loadValuation();
