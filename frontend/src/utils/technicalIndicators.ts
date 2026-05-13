@@ -168,9 +168,8 @@ export function calculateMA(data: HistoryPoint[], period: number): { date: strin
  */
 export function filterRecentData<T extends { date: string }>(data: T[], days: number): T[] {
   if (!data || data.length === 0) return [];
-  if (days >= 9999) return data;
-  
-  // 按日期排序（从新到旧）
+  if (days >= 9999) return [...data];
+
   const sorted = [...data].sort((a, b) => {
     const dateA = new Date(a.date.replace(/-/g, '/'));
     const dateB = new Date(b.date.replace(/-/g, '/'));

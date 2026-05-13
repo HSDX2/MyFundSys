@@ -17,8 +17,7 @@ export function exportToCSV(data: any[], filename: string) {
     ...data.map(row => 
       headers.map(header => {
         const value = row[header];
-        // 处理包含逗号或引号的值
-        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.startsWith('=') || value.startsWith('@') || value.startsWith('+'))) {
           return `"${value.replace(/"/g, '""')}"`;
         }
         return value ?? '';
@@ -187,7 +186,7 @@ export function importTransactionsFromCSV(csvText: string): Omit<Transaction, 'i
 
     const txDate = String(row['日期']).trim();
     const today = formatLocalDate(new Date());
-    const isPending = txDate > today;
+    const isPending = txDate >= today;
 
     transactions.push({
       fundId: String(row['基金代码']).trim(),
