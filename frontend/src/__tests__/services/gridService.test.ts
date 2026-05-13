@@ -46,6 +46,12 @@ vi.mock('../../services/navUpdateService', () => ({
   addTransactionWithHoldingUpdate: mockAddTransactionWithHoldingUpdate,
 }));
 
+// Mock favoriteService
+const mockAddFavoriteFund = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+vi.mock('../../services/favoriteService', () => ({
+  addFavoriteFund: mockAddFavoriteFund,
+}));
+
 import {
   calculateGridLevels,
   deriveGridStatuses,
@@ -553,6 +559,8 @@ describe('gridService', () => {
   // ============================================
   describe('batchImportGridStrategies', () => {
     afterEach(() => {
+      // Restore default mockAddFavoriteFund return value
+      mockAddFavoriteFund.mockResolvedValue(true);
       // Restore default mockFrom implementation so downstream tests aren't affected
       mockFrom.mockImplementation(() => ({
         select: vi.fn(() => ({
@@ -594,31 +602,37 @@ describe('gridService', () => {
     it('空数组返回 0 成功', async () => {
       const result = await batchImportGridStrategies([]);
       expect(result.success).toBe(0);
+      expect(result.autoFavorited).toBe(0);
     });
 
     it('Supabase 未配置返回错误', async () => {
       mockIsSupabaseConfigured.mockReturnValue(false);
       const result = await batchImportGridStrategies([importItem]);
       expect(result.success).toBe(0);
+      expect(result.autoFavorited).toBe(0);
       expect(result.errors[0]).toContain('Supabase 未配置');
     });
 
-    it('成功创建新策略', async () => {
+    it('成功创建新策略并自动添加到收藏', async () => {
       mockSelectResult.mockResolvedValue({ data: null, error: null });
 
       const result = await batchImportGridStrategies([importItem]);
 
       expect(result.success).toBe(1);
+      expect(result.autoFavorited).toBe(1);
       expect(result.errors).toHaveLength(0);
+      expect(mockAddFavoriteFund).toHaveBeenCalledWith('000001', '测试基金');
     });
 
-    it('成功更新现有策略', async () => {
+    it('成功更新现有策略不添加到收藏', async () => {
       mockSelectResult.mockResolvedValue({ data: { id: 'gs_001' }, error: null });
 
       const result = await batchImportGridStrategies([importItem]);
 
       expect(result.success).toBe(1);
+      expect(result.autoFavorited).toBe(0);
       expect(result.errors).toHaveLength(0);
+      expect(mockAddFavoriteFund).not.toHaveBeenCalled();
     });
 
     it('更新现有策略失败记录错误', async () => {
@@ -651,6 +665,18 @@ describe('gridService', () => {
 
       expect(result.success).toBe(0);
       expect(result.errors[0]).toContain('创建失败');
+    });
+
+    it('创建新策略但添加到收藏失败时记录错误', async () => {
+      mockSelectResult.mockResolvedValue({ data: null, error: null });
+      mockAddFavoriteFund.mockResolvedValue(false);
+
+      const result = await batchImportGridStrategies([importItem]);
+
+      expect(result.success).toBe(1);
+      expect(result.autoFavorited).toBe(0);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('添加到收藏失败');
     });
 
     it('抛出非 Error 对象时记录未知错误', async () => {

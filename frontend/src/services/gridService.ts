@@ -6,6 +6,7 @@
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { addTransactionWithHoldingUpdate } from './navUpdateService';
+import { addFavoriteFund } from './favoriteService';
 import { GRID_TYPES } from '../types';
 import type {
   GridType,
@@ -538,12 +539,13 @@ export async function batchImportGridStrategies(
     bottom_price: number;
     grid_config: Record<GridType, GridTypeConfig>;
   }>
-): Promise<{ success: number; errors: string[] }> {
+): Promise<{ success: number; autoFavorited: number; errors: string[] }> {
   if (!isSupabaseConfigured()) {
-    return { success: 0, errors: ['Supabase 未配置'] };
+    return { success: 0, autoFavorited: 0, errors: ['Supabase 未配置'] };
   }
 
   let success = 0;
+  let autoFavorited = 0;
   const errors: string[] = [];
 
   for (const item of jsonData) {
@@ -572,6 +574,8 @@ export async function batchImportGridStrategies(
           errors.push(`${item.fund_code}: 更新失败 - ${error.message}`);
           continue;
         }
+
+        success++;
       } else {
         // 创建新策略
         const { error } = await (supabase
@@ -589,15 +593,22 @@ export async function batchImportGridStrategies(
           errors.push(`${item.fund_code}: 创建失败 - ${error.message}`);
           continue;
         }
-      }
 
-      success++;
+        success++;
+
+        const ok = await addFavoriteFund(item.fund_code, item.fund_name);
+        if (ok) {
+          autoFavorited++;
+        } else {
+          errors.push(`${item.fund_code}: 添加到收藏失败`);
+        }
+      }
     } catch (err) {
       errors.push(`${item.fund_code}: ${err instanceof Error ? err.message : '未知错误'}`);
     }
   }
 
-  return { success, errors };
+  return { success, autoFavorited, errors };
 }
 
 // ============================================

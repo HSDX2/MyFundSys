@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-05-13
+
+### Added
+- **策略导入自动收藏** — 导入网格策略时，新建的基金代码自动添加到收藏列表（`favoriteService.ts`）
+- **`favoriteService.ts`** — 新增收藏工具函数 `addFavoriteFund`，封装 `onConflict` 去重逻辑
+
+### Changed
+- 全项目测试从 526 增长到 **527**（Web 503 + Android 24）
+
 ## [2.3.0] - 2026-05-13
 
 ### Added

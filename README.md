@@ -97,7 +97,7 @@ npm install
 cp .env.example .env.local
 
 # 3. Run tests
-npm test                    # 502+ tests, Vitest
+npm test                    # 503 tests, Vitest
 npm run test:e2e            # Playwright E2E
 
 # 4. Build
@@ -115,6 +115,7 @@ npm run deploy              # Push to gh-pages branch
 | `src/services/fundApi.ts` | Fund data API with NAV/market/valuation caching |
 | `src/services/lotTraceService.ts` | Per-lot lifecycle grouping for traceability view |
 | `src/services/alertService.ts` | Pending alert CRUD (nav_date_mismatch / no_nav_data / api_error) |
+| `src/services/favoriteService.ts` | Favorite fund helper (`addFavoriteFund`) |
 | `src/services/gridService.ts` | Grid strategy CRUD, execution, status derivation |
 | `src/hooks/useSync.ts` | Data access hooks (holdings derived from transactions) |
 | `src/hooks/useRiskMetrics.ts` | Portfolio risk aggregation (assets, deployment, concentration, valuation signal) |
@@ -129,7 +130,7 @@ npx vitest run src/__tests__/services/fundApi.test.ts   # Single file
 npm run test:e2e                    # Playwright E2E
 ```
 
-**Framework**: Vitest 4 + @testing-library/react — **526 tests total** (Web 502 + Android 24)
+**Framework**: Vitest 4 + @testing-library/react — **527 tests total** (Web 503 + Android 24)
 
 ## Android App
 
