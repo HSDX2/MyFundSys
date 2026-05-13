@@ -110,7 +110,7 @@ const Settings: React.FC = () => {
       }
 
       await refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error('CSV 导入失败:', err);
       Toast.show({ content: 'CSV 导入失败，请检查文件格式', position: 'bottom' });
     } finally {

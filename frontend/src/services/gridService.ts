@@ -236,7 +236,18 @@ export async function executeGrid(
       throw new Error(`写入买入执行记录失败: ${error.message}`);
     }
 
-    return { executionId: (data as any).id, transactionId };
+    const executionId = (data as any).id;
+
+    // 3. 回填 grid_execution_id 到 transaction，确保 deriveLots 能精确匹配
+    const { error: backfillError } = await (supabase
+      .from('transactions') as any)
+      .update({ grid_execution_id: executionId })
+      .eq('id', transactionId);
+    if (backfillError) {
+      throw new Error(`回填 grid_execution_id 失败: ${backfillError.message}`);
+    }
+
+    return { executionId, transactionId };
   }
 
   // action === 'sell'
@@ -301,9 +312,37 @@ export async function executeGrid(
 export async function cancelGridExecution(executionId: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
+  const { data: exec, error: fetchError } = await (supabase
+    .from('grid_executions') as any)
+    .select('*')
+    .eq('id', executionId)
+    .maybeSingle();
+  if (fetchError) throw new Error(`查询网格执行记录失败: ${fetchError.message}`);
+
+  if (!exec) return;
+  if (exec.status === 'cancelled') return;
+
+  // 检查是否已有卖出消耗了该买入份额：卖出 transaction 的 grid_execution_id 指向该 execution
+  if (exec.action === 'buy' && exec.transaction_id) {
+    const { data: sellTxs } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('grid_execution_id', executionId)
+      .eq('type', 'sell')
+      .limit(1);
+    if (sellTxs && (sellTxs as any[]).length > 0) {
+      throw new Error('该买入已被卖出引用，无法取消。请先删除对应的卖出记录。');
+    }
+  }
+
+  if (exec.transaction_id) {
+    const { error: txError } = await supabase.from('transactions').delete().eq('id', exec.transaction_id);
+    if (txError) throw new Error(`删除关联交易失败: ${txError.message}`);
+  }
+
   const { error } = await (supabase
     .from('grid_executions') as any)
-    .update({ status: 'cancelled' })
+    .update({ status: 'cancelled', transaction_id: null })
     .eq('id', executionId);
   if (error) throw new Error(`取消网格执行失败: ${error.message}`);
 }
@@ -454,11 +493,15 @@ export function computeFundOverview(
     }
   }
 
-  // 兜底：所有网格都已买入时，nearestPrice 为 Infinity，避免 NaN
+  // 兜底：所有网格都已买入时，nearestPrice 为 Infinity，置 0 并避免后续除零
   if (nearestPrice === Infinity) {
     nearestPrice = 0;
     nearestDistance = 0;
   }
+
+  const distancePct = nearestPrice > 0
+    ? Math.round(((currentNav - nearestPrice) / nearestPrice) * 10000) / 100
+    : 0;
 
   // 计算总预算
   const totalBudget =
@@ -471,7 +514,7 @@ export function computeFundOverview(
     current_nav: currentNav,
     nearest_trigger: {
       price: nearestPrice,
-      distance_pct: Math.round(((currentNav - nearestPrice) / nearestPrice) * 10000) / 100,
+      distance_pct: distancePct,
       grid_type: nearestGridType,
       level: nearestLevel,
     },

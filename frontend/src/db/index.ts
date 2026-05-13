@@ -34,16 +34,9 @@ export async function resetDatabase(): Promise<void> {
 
   const tables = ['holdings', 'transactions', 'favorite_funds', 'fund_cache', 'grid_strategies', 'grid_executions'];
   for (const table of tables) {
-    const { data, error: fetchError } = await supabase.from(table).select('id');
-    if (fetchError) {
+    const { error } = await supabase.from(table).delete().neq('id', '0');
+    if (error) {
       continue;
-    }
-    if (data && data.length > 0) {
-      const ids = data.map((row: any) => row.id);
-      const { error: deleteError } = await supabase.from(table).delete().in('id', ids);
-      if (deleteError) {
-        // 静默忽略删除错误，继续处理下一个表
-      }
     }
   }
 }
@@ -53,11 +46,12 @@ export async function exportDatabase(): Promise<string> {
     throw new Error('Supabase 未配置');
   }
 
-  const [holdings, transactions, gridStrategies, gridExecutions] = await Promise.all([
+  const [holdings, transactions, gridStrategies, gridExecutions, favoriteFunds] = await Promise.all([
     supabase.from('holdings').select('*'),
     supabase.from('transactions').select('*'),
     supabase.from('grid_strategies').select('*'),
     supabase.from('grid_executions').select('*'),
+    supabase.from('favorite_funds').select('*'),
   ]);
 
   const data = {
@@ -67,6 +61,7 @@ export async function exportDatabase(): Promise<string> {
     transactions: transactions.data || [],
     grid_strategies: gridStrategies.data || [],
     grid_executions: gridExecutions.data || [],
+    favorite_funds: favoriteFunds.data || [],
   };
 
   return JSON.stringify(data, null, 2);
@@ -115,11 +110,11 @@ export async function importDatabase(jsonString: string): Promise<void> {
   const { holdings, transactions } = validateImportData(data);
 
   if (holdings.length) {
-    await supabase.from('holdings').delete().neq('id', '');
+    await supabase.from('holdings').delete().neq('id', '0');
     await supabase.from('holdings').insert(holdings as any);
   }
   if (transactions.length) {
-    await supabase.from('transactions').delete().neq('id', '');
+    await supabase.from('transactions').delete().neq('id', '0');
     await supabase.from('transactions').insert(transactions as any);
   }
 
@@ -127,12 +122,17 @@ export async function importDatabase(jsonString: string): Promise<void> {
   const obj = data as Record<string, unknown>;
   const gridStrategies = Array.isArray(obj.grid_strategies) ? obj.grid_strategies : [];
   const gridExecutions = Array.isArray(obj.grid_executions) ? obj.grid_executions : [];
+  const favoriteFunds = Array.isArray(obj.favorite_funds) ? obj.favorite_funds : [];
   if (gridStrategies.length) {
-    await supabase.from('grid_strategies').delete().neq('id', '');
+    await supabase.from('grid_strategies').delete().neq('id', '0');
     await supabase.from('grid_strategies').insert(gridStrategies as any);
   }
   if (gridExecutions.length) {
-    await supabase.from('grid_executions').delete().neq('id', '');
+    await supabase.from('grid_executions').delete().neq('id', '0');
     await supabase.from('grid_executions').insert(gridExecutions as any);
+  }
+  if (favoriteFunds.length) {
+    await supabase.from('favorite_funds').delete().neq('id', '0');
+    await supabase.from('favorite_funds').insert(favoriteFunds as any);
   }
 }

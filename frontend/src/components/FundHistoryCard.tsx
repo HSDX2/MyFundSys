@@ -13,13 +13,14 @@ import {
   ComposedChart,
   Area,
   Cell,
+  ReferenceLine,
 } from 'recharts';
 import { fetchFundHistory, FundHistoryData } from '../services/fundApi';
 import {
   calculateMACD,
   calculateKDJ,
   calculateMA,
-  formatDate,
+  formatShortDate,
   TimeRange,
   getMACDParams,
   getKDJParams,
@@ -115,7 +116,7 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
     
     return points.map((p, i) => ({
       date: p.date,
-      dateStr: formatDate(p.date),
+      dateStr: formatShortDate(p.date),
       nav: p.nav,
       ma5: ma5[i]?.value,
       ma10: ma10[i]?.value,
@@ -135,7 +136,7 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
     if (historyData.length > 0) {
       return historyData.map(d => ({
         date: d.date,
-        dateStr: formatDate(d.date),
+        dateStr: formatShortDate(d.date),
         nav: d.nav,
         ma5: undefined, ma10: undefined, ma20: undefined,
         dif: undefined, dea: undefined, macd: undefined,
@@ -308,6 +309,16 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
                     dot={false}
                   />
                 )}
+                {historyData.length >= 20 && (
+                  <Line
+                    type="monotone"
+                    dataKey="ma20"
+                    name="MA20"
+                    stroke="#eb2f96"
+                    strokeWidth={1.5}
+                    dot={false}
+                  />
+                )}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -383,8 +394,8 @@ const FundHistoryCard: React.FC<FundHistoryCardProps> = ({ fundCode }) => {
                   <Line type="monotone" dataKey="k" name="K" stroke="#3b82f6" strokeWidth={1.5} dot={false} />
                   <Line type="monotone" dataKey="d" name="D" stroke="#f59e0b" strokeWidth={1.5} dot={false} />
                   <Line type="monotone" dataKey="j" name="J" stroke="#a855f7" strokeWidth={1.5} dot={false} />
-                  <Line type="monotone" dataKey={() => 80} stroke="#ff4d4f" strokeDasharray="3 3" strokeWidth={1} dot={false} legendType="none" />
-                  <Line type="monotone" dataKey={() => 20} stroke="#52c41a" strokeDasharray="3 3" strokeWidth={1} dot={false} legendType="none" />
+                  <ReferenceLine y={80} stroke="#ff4d4f" strokeDasharray="3 3" strokeWidth={1} />
+                  <ReferenceLine y={20} stroke="#52c41a" strokeDasharray="3 3" strokeWidth={1} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

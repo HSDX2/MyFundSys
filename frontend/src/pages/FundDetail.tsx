@@ -118,7 +118,11 @@ const FundDetail: React.FC = () => {
   };
 
   const handleGoBack = () => {
-    window.location.hash = 'funds';
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.hash = 'funds';
+    }
   };
 
   // 如果还没有任何基金信息且还在加载中，显示加载状态

@@ -207,9 +207,9 @@ export function getDaysFromRange(range: TimeRange): number {
 }
 
 /**
- * 格式化日期显示
+ * 格式化日期为短格式（M/D），用于图表横轴标签
  */
-export function formatDate(dateStr: string): string {
+export function formatShortDate(dateStr: string): string {
   const date = new Date(dateStr);
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }

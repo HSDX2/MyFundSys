@@ -148,22 +148,24 @@ describe('updateLocalHoldingAfterTransaction', () => {
       expect(result.shouldDelete).toBe(false);
     });
 
-    it('卖出后总成本正确减少', () => {
+    it('卖出后总成本按比例减少（使用成本基础而非卖出金额）', () => {
       const existing = makeHolding({ shares: 1000, avgCost: 1.0, totalCost: 1000 });
       const tx = makeSellTx({ shares: 300, amount: 450 });
 
       const result = updateLocalHoldingAfterTransaction(existing, tx);
 
-      expect(result.holding!.totalCost).toBeCloseTo(550, 1);
+      // totalCost = 1000 * (1 - 300/1000) = 700 （按比例，不使用 sell amount）
+      expect(result.holding!.totalCost).toBeCloseTo(700, 1);
     });
 
-    it('卖出后均价重新计算', () => {
+    it('卖出后均价不变（成本基础按比例减少）', () => {
       const existing = makeHolding({ shares: 1000, avgCost: 1.0, totalCost: 1000 });
       const tx = makeSellTx({ shares: 300, amount: 450 });
 
       const result = updateLocalHoldingAfterTransaction(existing, tx);
 
-      expect(result.holding!.avgCost).toBeCloseTo(550 / 700, 3);
+      // avgCost = 700/700 = 1.0（成本基础不变）
+      expect(result.holding!.avgCost).toBeCloseTo(1.0, 3);
     });
 
     it('全部卖出后应标记删除', () => {
@@ -207,13 +209,15 @@ describe('reverseTransactionOnHolding', () => {
   });
 
   describe('反向卖出（删除卖出交易）', () => {
-    it('反向卖出后份额正确恢复', () => {
-      const existing = makeHolding({ shares: 700, avgCost: 0.786, totalCost: 550 });
+    it('反向卖出后份额正确恢复（按比例还原成本基础）', () => {
+      // 卖出前: shares=1000, totalCost=1000 → 按比例卖出300份后: shares=700, totalCost=700
+      const existing = makeHolding({ shares: 700, avgCost: 1.0, totalCost: 700 });
       const tx = makeSellTx({ shares: 300, amount: 450 });
 
       const result = reverseTransactionOnHolding(existing, tx);
 
       expect(result.holding!.shares).toBe(1000);
+      // totalCost = 700 * (700 + 300) / 700 = 1000（还原）
       expect(result.holding!.totalCost).toBe(1000);
       expect(result.shouldDelete).toBe(false);
     });
@@ -431,96 +435,35 @@ describe('removeTransactionWithHoldingUpdate', () => {
 // ============================================
 
 describe('removeHoldingWithTransactions', () => {
-  it('传入 fundCode 直接删除', async () => {
-    mockFrom
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      })
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      });
-
-    await expect(removeHoldingWithTransactions('h1', '000001')).resolves.toBeUndefined();
-    expect(mockFrom).toHaveBeenNthCalledWith(1, 'transactions');
-    expect(mockFrom).toHaveBeenNthCalledWith(2, 'holdings');
-  });
-
-  it('从 holdings 表查询 fundCode（向后兼容）', async () => {
-    mockFrom
-      .mockReturnValueOnce({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({ data: { fund_code: '000001' }, error: null }),
-            }),
-          }),
-        }),
-      })
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      })
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      });
-
-    await expect(removeHoldingWithTransactions('h1')).resolves.toBeUndefined();
-  });
-
-  it('查询不到 holding 直接返回', async () => {
+  it('按 fundCode 删除交易记录', async () => {
     mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          limit: vi.fn().mockReturnValue({
-            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-          }),
-        }),
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null }),
       }),
     });
 
-    await expect(removeHoldingWithTransactions('h1')).resolves.toBeUndefined();
+    await expect(removeHoldingWithTransactions('000001')).resolves.toBeUndefined();
+    expect(mockFrom).toHaveBeenCalledWith('transactions');
   });
 
-  it('删除交易记录失败抛出错误', async () => {
-    mockFrom
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: { message: 'tx delete failed' } }),
-        }),
-      })
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      });
+  it('Supabase 未配置直接返回', async () => {
+    mockIsSupabaseConfigured.mockReturnValueOnce(false);
+    await expect(removeHoldingWithTransactions('000001')).resolves.toBeUndefined();
+  });
 
-    await expect(removeHoldingWithTransactions('h1', '000001')).rejects.toThrow(
+  it('空 fundCode 直接返回', async () => {
+    await expect(removeHoldingWithTransactions('')).resolves.toBeUndefined();
+  });
+
+  it('删除失败抛出错误', async () => {
+    mockFrom.mockReturnValue({
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: { message: 'tx delete failed' } }),
+      }),
+    });
+
+    await expect(removeHoldingWithTransactions('000001')).rejects.toThrow(
       '删除交易记录失败: tx delete failed'
-    );
-  });
-
-  it('删除持仓记录失败抛出错误', async () => {
-    mockFrom
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      })
-      .mockReturnValueOnce({
-        delete: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: { message: 'holding delete failed' } }),
-        }),
-      });
-
-    await expect(removeHoldingWithTransactions('h1', '000001')).rejects.toThrow(
-      '删除持仓记录失败: holding delete failed'
     );
   });
 });

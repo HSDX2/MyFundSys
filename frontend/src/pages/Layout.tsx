@@ -108,10 +108,9 @@ const Layout: React.FC = () => {
 
   const activeTab = tabs.find(tab => tab.key === activeKey);
 
-  const handleLogout = async () => {
-    await signOut();
+  const handleLogout = () => {
     Toast.show({ content: '已退出登录', position: 'bottom' });
-    window.location.reload();
+    setTimeout(() => signOut(), 500);
   };
 
   // 渲染当前内容
@@ -159,8 +158,8 @@ const Layout: React.FC = () => {
                 color={syncStatus.isOnline ? '#52c41a' : '#faad14'} 
                 content={syncStatus.isSyncing ? '同步中' : syncStatus.isOnline ? '在线' : '离线'}
               />
-              {syncStatus.pendingChanges > 0 && (
-                <Badge content={`${syncStatus.pendingChanges} 待同步`} style={{ background: '#fa8c16' }} />
+              {syncStatus.lastSyncError && (
+                <Badge content="同步错误" style={{ background: '#ff4d4f' }} />
               )}
             </>
           )}

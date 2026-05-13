@@ -1,5 +1,4 @@
 import { Toast } from 'antd-mobile';
-import { formatDate } from '../utils';
 import type { Holding, Transaction } from '../types';
 
 // CSV 导出函数

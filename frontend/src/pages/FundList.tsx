@@ -17,44 +17,52 @@ const FundList: React.FC = () => {
 
   // 防抖搜索（代码）- 至少4位才能获得准确结果
   useEffect(() => {
+    let cancelled = false;
     const timer = setTimeout(async () => {
       if (codeSearchText.trim().length >= 4) {
         setIsCodeSearching(true);
         try {
           const results = await searchByCode(codeSearchText.trim());
-          setCodeSearchResults(results);
+          if (!cancelled) setCodeSearchResults(results);
         } catch {
           // 静默忽略搜索错误
         } finally {
-          setIsCodeSearching(false);
+          if (!cancelled) setIsCodeSearching(false);
         }
       } else {
-        setCodeSearchResults([]);
+        if (!cancelled) {
+          setCodeSearchResults([]);
+          setIsCodeSearching(false);
+        }
       }
-    }, 300); // 300ms 防抖
+    }, 300);
 
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [codeSearchText]);
 
   // 防抖搜索（名称）
   useEffect(() => {
+    let cancelled = false;
     const timer = setTimeout(async () => {
       if (nameSearchText.trim().length >= 2) {
         setIsNameSearching(true);
         try {
           const results = await searchByName(nameSearchText.trim());
-          setNameSearchResults(results);
+          if (!cancelled) setNameSearchResults(results);
         } catch {
           // 静默忽略搜索错误
         } finally {
-          setIsNameSearching(false);
+          if (!cancelled) setIsNameSearching(false);
         }
       } else {
-        setNameSearchResults([]);
+        if (!cancelled) {
+          setNameSearchResults([]);
+          setIsNameSearching(false);
+        }
       }
-    }, 300); // 300ms 防抖
+    }, 300);
 
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [nameSearchText]);
 
   // 点击搜索结果

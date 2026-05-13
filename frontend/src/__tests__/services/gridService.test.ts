@@ -7,16 +7,19 @@ const mockUpdateResult = vi.hoisted(() => vi.fn());
 const mockDeleteResult = vi.hoisted(() => vi.fn());
 
 const mockFrom = vi.hoisted(() => vi.fn(() => ({
-  select: vi.fn(() => ({
-    eq: vi.fn(() => ({
-      maybeSingle: mockSelectResult,
-      order: mockSelectResult,
-    })),
-    or: vi.fn(() => ({
-      order: mockSelectResult,
-    })),
-    order: mockSelectResult,
-  })),
+    select: vi.fn(() => {
+      const eqChain: any = vi.fn(() => eqChain);
+      eqChain.maybeSingle = mockSelectResult;
+      eqChain.order = mockSelectResult;
+      eqChain.limit = vi.fn(() => ({ maybeSingle: mockSelectResult }));
+      return {
+        eq: eqChain,
+        or: vi.fn(() => ({
+          order: mockSelectResult,
+        })),
+        order: mockSelectResult,
+      };
+    }),
   insert: vi.fn(() => ({
     select: vi.fn(() => ({
       single: mockInsertResult,
@@ -914,9 +917,12 @@ describe('gridService', () => {
       expect(mockFrom).not.toHaveBeenCalled();
     });
 
-    it('成功取消执行记录', async () => {
+    it('成功取消执行记录并删除关联交易', async () => {
+      mockSelectResult.mockResolvedValue({ data: { id: 'ge_001', transaction_id: 'tx_001' }, error: null });
+
       await cancelGridExecution('ge_001');
       expect(mockFrom).toHaveBeenCalledWith('grid_executions');
+      expect(mockFrom).toHaveBeenCalledWith('transactions');
       expect(mockUpdateResult).toHaveBeenCalled();
     });
   });

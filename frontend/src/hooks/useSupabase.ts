@@ -38,7 +38,7 @@ export function useAuthStatus() {
 }
 
 // 登出
-export async function signOut() {
+export function signOut() {
   localStorage.removeItem('myfundsys_auth');
   localStorage.removeItem('myfundsys_auth_time');
   window.location.href = '/';

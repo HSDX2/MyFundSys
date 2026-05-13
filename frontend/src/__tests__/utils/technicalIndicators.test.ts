@@ -6,7 +6,7 @@ import {
   calculateMA,
   filterRecentData,
   getDaysFromRange,
-  formatDate,
+  formatShortDate,
   getMACDParams,
   getKDJParams,
 } from '../../utils/technicalIndicators';
@@ -214,21 +214,12 @@ describe('getDaysFromRange', () => {
   });
 });
 
-describe('formatDate', () => {
-  it('正常日期格式化为 M/D', () => {
-    expect(formatDate('2024-03-15')).toBe('3/15');
-  });
-
-  it('1月1日正确格式化', () => {
-    expect(formatDate('2024-01-01')).toBe('1/1');
-  });
-
-  it('带时间戳的字符串正确解析', () => {
-    expect(formatDate('2024-03-15T08:30:00.000Z')).toBe('3/15');
-  });
-
-  it('无效日期返回 NaN/NaN', () => {
-    expect(formatDate('not-a-date')).toBe('NaN/NaN');
+describe('formatShortDate', () => {
+  it('should format dates as M/D', () => {
+    expect(formatShortDate('2024-03-15')).toBe('3/15');
+    expect(formatShortDate('2024-01-01')).toBe('1/1');
+    expect(formatShortDate('2024-03-15T08:30:00.000Z')).toBe('3/15');
+    expect(formatShortDate('not-a-date')).toBe('NaN/NaN');
   });
 });
 

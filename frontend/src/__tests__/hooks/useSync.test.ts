@@ -95,23 +95,24 @@ describe('updateLocalHoldingAfterTransaction - 卖出', () => {
     expect(result.shouldDelete).toBe(false);
   });
 
-  it('卖出后总成本正确减少', () => {
+  it('卖出后总成本按比例减少（使用成本基础而非卖出金额）', () => {
     const existing = makeHolding({ shares: 1000, avgCost: 1.0, totalCost: 1000 });
     const tx = makeSellTx({ shares: 300, amount: 450 });
 
     const result = updateLocalHoldingAfterTransaction(existing, tx);
 
-    expect(result.holding!.totalCost).toBeCloseTo(550, 1);
+    // totalCost = 1000 * (1 - 300/1000) = 700（按比例）
+    expect(result.holding!.totalCost).toBeCloseTo(700, 1);
   });
 
-  it('卖出后均价重新计算（totalCost/shares）', () => {
+  it('卖出后均价不变', () => {
     const existing = makeHolding({ shares: 1000, avgCost: 1.0, totalCost: 1000 });
     const tx = makeSellTx({ shares: 300, amount: 450 });
 
     const result = updateLocalHoldingAfterTransaction(existing, tx);
 
-    // avgCost = totalCost / shares = 550/700 ≈ 0.786
-    expect(result.holding!.avgCost).toBeCloseTo(550 / 700, 3);
+    // avgCost = 700/700 = 1.0（成本基础不变）
+    expect(result.holding!.avgCost).toBeCloseTo(1.0, 3);
   });
 
   it('全部卖出后应标记删除', () => {

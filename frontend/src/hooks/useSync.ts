@@ -147,9 +147,8 @@ export function useHoldings() {
     await loadHoldings();
   }, [loadHoldings]);
 
-  const removeHolding = useCallback(async (id: string) => {
-    // id 是 fundCode（enrichHoldingsWithNav 中 id: summary.fundCode）
-    await removeHoldingWithTransactions(id, id);
+  const removeHolding = useCallback(async (fundCode: string) => {
+    await removeHoldingWithTransactions(fundCode);
   }, []);
 
   return { holdings, lots, loading, removeHolding, refresh };

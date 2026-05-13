@@ -351,27 +351,46 @@ export function canDeleteTransaction(
     .filter(t => t.type === 'sell' && t.status === 'completed')
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  // 模拟批次派生
+  // 模拟批次派生（与 deriveLots 字段一致，支持 gridExecutionId 匹配）
   const lots = buyTxs.map(b => ({
     id: b.id,
     fundCode: b.fundCode,
     shares: b.shares,
     remainingShares: b.shares,
     cost: b.price,
+    gridExecutionId: b.gridExecutionId,
   }));
 
-  // 模拟卖出匹配
+  // 模拟卖出匹配（与 deriveLots 保持一致：优先 gridExecutionId，再成本升序）
   for (const sell of sellTxs) {
     let remainingToSell = sell.shares;
-    const fundLots = lots
-      .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
-      .sort((a, b) => a.cost - b.cost);
 
-    for (const lot of fundLots) {
-      if (remainingToSell <= 0) break;
-      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-      lot.remainingShares -= sellFromLot;
-      remainingToSell -= sellFromLot;
+    // 1. 优先 gridExecutionId 精确匹配
+    if (sell.gridExecutionId) {
+      const targetLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && l.gridExecutionId === sell.gridExecutionId)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of targetLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
+    }
+
+    // 2. Fallback 按成本升序
+    if (remainingToSell > 0) {
+      const fundLots = lots
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
+        .sort((a, b) => a.cost - b.cost);
+
+      for (const lot of fundLots) {
+        if (remainingToSell <= 0) break;
+        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+        lot.remainingShares -= sellFromLot;
+        remainingToSell -= sellFromLot;
+      }
     }
   }
 
@@ -422,10 +441,11 @@ export function updateLocalHoldingAfterTransaction(
 
   let newTotalCost = transaction.type === 'buy'
     ? holding.totalCost + transaction.amount
-    : holding.totalCost - transaction.amount;
+    : holding.shares > 0
+      ? holding.totalCost * (1 - transaction.shares / holding.shares)
+      : 0;
 
   if (newTotalCost < 0) {
-    console.warn(`总成本为负: ${holding.fundCode}, totalCost=${holding.totalCost}, amount=${transaction.amount}, 已钳制为 0`);
     newTotalCost = 0;
   }
 
@@ -459,7 +479,9 @@ export function reverseTransactionOnHolding(
 
   const newTotalCost = transaction.type === 'buy'
     ? holding.totalCost - transaction.amount
-    : holding.totalCost + transaction.amount;
+    : holding.shares > 0
+      ? holding.totalCost * (holding.shares + transaction.shares) / holding.shares
+      : transaction.amount;
 
   if (newShares <= 0) {
     return { holding: null, shouldDelete: true };
@@ -509,6 +531,7 @@ export async function addTransactionWithHoldingUpdate(
     confirm_date: transaction.confirmDate || null,
     status: transaction.status || 'completed',
     source: transaction.source || 'manual',
+    grid_execution_id: transaction.gridExecutionId || null,
   };
 
   const { data, error } = await supabase
@@ -560,35 +583,14 @@ export async function removeTransactionWithHoldingUpdate(
  * @param holdingId holdings 表中的记录 ID（兼容性参数，实际不使用）
  * @param fundCode 基金代码，用于定位要删除的交易记录
  */
-export async function removeHoldingWithTransactions(holdingId: string, fundCode?: string): Promise<void> {
+export async function removeHoldingWithTransactions(fundCode: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
-
-  // 如果提供了 fundCode，直接使用；否则从 holdings 表查询（向后兼容）
-  let targetFundCode = fundCode;
-  if (!targetFundCode) {
-    const { data: holdingData, error: holdingError } = await supabase
-      .from('holdings')
-      .select('fund_code')
-      .eq('id', holdingId)
-      .limit(1)
-      .maybeSingle();
-    if (holdingError) {
-      throw new Error(`查询持仓失败: ${holdingError.message}`);
-    }
-    const holding = holdingData as any;
-
-    if (!holding) return;
-    targetFundCode = holding.fund_code;
-  }
-
-  if (!targetFundCode) return;
+  if (!fundCode) return;
 
   // 删除该基金的所有交易记录
-  const { error: txError } = await supabase.from('transactions').delete().eq('fund_code', targetFundCode);
+  const { error: txError } = await supabase.from('transactions').delete().eq('fund_code', fundCode);
   if (txError) throw new Error(`删除交易记录失败: ${txError.message}`);
-  // 删除 holdings 表中的对应记录（兼容性）
-  const { error: holdingError } = await supabase.from('holdings').delete().eq('id', holdingId);
-  if (holdingError) throw new Error(`删除持仓记录失败: ${holdingError.message}`);
+  // holdings 表不再使用（从 transactions 派生），无需额外操作
 }
 
 // ============================================
@@ -690,9 +692,10 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const confirmDateObj = new Date(confirmDate);
+      const navDateObj = new Date(navInfo.navDate);
 
-      if (navInfo.navDate < confirmDate) {
-        const confirmDateObj = new Date(confirmDate);
+      if (navDateObj.getTime() < confirmDateObj.getTime()) {
         if (confirmDateObj < today) {
           const daysSinceConfirm = Math.floor((today.getTime() - confirmDateObj.getTime()) / (1000 * 60 * 60 * 24));
           if (daysSinceConfirm > 5) {

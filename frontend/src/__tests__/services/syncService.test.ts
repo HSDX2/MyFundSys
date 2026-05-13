@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ---- Mock Supabase（vi.hoisted 确保在模块加载前初始化）----
+const mockInsert = vi.hoisted(() => vi.fn());
 const mockUpsert = vi.hoisted(() => vi.fn());
 const mockDelete = vi.hoisted(() => vi.fn());
 const mockSelect = vi.hoisted(() => vi.fn());
 const mockFrom = vi.hoisted(() => vi.fn((_table?: string) => ({
+  insert: mockInsert,
   upsert: mockUpsert,
   delete: mockDelete,
   select: mockSelect,
@@ -31,15 +33,15 @@ describe('syncService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsSupabaseConfigured.mockReturnValue(true);
-    // 重置 mockFrom 默认行为，防止被 fetchAllDataFromSupabase 测试覆盖
     mockFrom.mockImplementation(() => ({
+      insert: mockInsert,
       upsert: mockUpsert,
       delete: mockDelete,
       select: mockSelect,
     }));
-    // 模拟链式调用: .delete().neq('id', '0') 和 .upsert()
     const mockNeq = vi.fn().mockResolvedValue({ error: null });
     mockDelete.mockReturnValue({ neq: mockNeq });
+    mockInsert.mockResolvedValue({ error: null });
     mockUpsert.mockResolvedValue({ error: null });
     mockSelect.mockResolvedValue({ error: null, count: 0 });
   });
@@ -76,12 +78,12 @@ describe('syncService', () => {
       const result = await syncHoldingsToSupabase(holdings);
 
       expect(mockDelete).toHaveBeenCalled();
-      expect(mockUpsert).toHaveBeenCalled();
+      expect(mockInsert).toHaveBeenCalled();
       expect(result.success).toBe(true);
     });
 
     it('Supabase 错误时返回失败', async () => {
-      mockUpsert.mockReturnValue({ error: new Error('DB Error') });
+      mockInsert.mockReturnValue({ error: new Error('DB Error') });
 
       const holdings: Holding[] = [
         {
@@ -228,7 +230,7 @@ describe('syncService', () => {
       const result = await checkSupabaseConnection();
 
       expect(result).toBe(true);
-      expect(mockSelect).toHaveBeenCalledWith('count', { count: 'exact', head: true });
+      expect(mockSelect).toHaveBeenCalledWith('id', { count: 'exact', head: true });
     });
 
     it('连接失败返回 false', async () => {

@@ -141,13 +141,11 @@ export async function syncHoldingsToSupabase(holdings: Holding[]): Promise<SyncR
   }
 
   try {
-    // 清空现有数据
     await supabase.from('holdings').delete().neq('id', '0');
 
-    // 插入新数据
     if (holdings.length > 0) {
       const dbHoldings = holdings.map(toDbHolding);
-      const { error } = await supabase.from('holdings').upsert(dbHoldings as any, { onConflict: 'id' });
+      const { error } = await supabase.from('holdings').insert(dbHoldings as any);
       if (error) throw error;
     }
 
@@ -216,7 +214,7 @@ export async function checkSupabaseConnection(): Promise<boolean> {
   }
 
   try {
-    const { error } = await supabase.from('holdings').select('count', { count: 'exact', head: true });
+    const { error } = await supabase.from('favorite_funds').select('id', { count: 'exact', head: true });
     return !error;
   } catch {
     return false;
