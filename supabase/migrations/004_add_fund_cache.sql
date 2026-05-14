@@ -35,9 +35,11 @@ alter table fund_cache enable row level security;
 alter table fund_search_history enable row level security;
 
 -- RLS 策略：所有人可以读写（简化模式）
+drop policy if exists "Allow all operations on fund_cache" on fund_cache;
 create policy "Allow all operations on fund_cache" 
 on fund_cache for all using (true) with check (true);
 
+drop policy if exists "Allow all operations on fund_search_history" on fund_search_history;
 create policy "Allow all operations on fund_search_history" 
 on fund_search_history for all using (true) with check (true);
 
