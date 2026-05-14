@@ -527,46 +527,62 @@ export async function addTransactionWithHoldingUpdate(
 
   const transactionId = crypto.randomUUID();
 
-  const txPayload: Record<string, unknown> = {
-    id: transactionId,
-    fund_code: transaction.fundCode,
-    fund_name: transaction.fundName,
-    type: transaction.type,
-    shares: transaction.shares,
-    nav: transaction.price,
-    amount: transaction.amount,
-    fee: transaction.fee || 0,
-    date: transaction.date,
-    status: transaction.status || 'completed',
-  };
-  if (transaction.source && transaction.source !== 'manual') {
-    txPayload.source = transaction.source;
-  }
-  if (transaction.confirmDate) {
-    txPayload.confirm_date = transaction.confirmDate;
-  }
-  if (transaction.gridExecutionId) {
-    txPayload.grid_execution_id = transaction.gridExecutionId;
-  }
-
-  const { data, error } = await supabase
-    .from('transactions')
-    .insert(txPayload as any)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(`插入交易记录失败: ${error.message}`);
+  function buildPayload(includeOptional: boolean): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+      id: transactionId,
+      fund_code: transaction.fundCode,
+      fund_name: transaction.fundName,
+      type: transaction.type,
+      shares: transaction.shares,
+      nav: transaction.price,
+      amount: transaction.amount,
+      fee: transaction.fee || 0,
+      date: transaction.date,
+      status: transaction.status || 'completed',
+    };
+    if (includeOptional) {
+      if (transaction.source && transaction.source !== 'manual') {
+        payload.source = transaction.source;
+      }
+      if (transaction.confirmDate) {
+        payload.confirm_date = transaction.confirmDate;
+      }
+      if (transaction.gridExecutionId) {
+        payload.grid_execution_id = transaction.gridExecutionId;
+      }
+    }
+    return payload;
   }
 
-  if (!data) {
-    throw new Error('插入交易记录成功但未返回数据');
+  // 先尝试包含可选列（source / confirm_date / grid_execution_id）
+  // 若失败（schema cache 未刷新），回退到仅基础列
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const withOptional = attempt === 0;
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert(buildPayload(withOptional) as any)
+      .select()
+      .single();
+
+    if (!error && data) {
+      return {
+        transactionId: (data as any).id,
+        holdingUpdated: transaction.status === 'completed',
+      };
+    }
+
+    if (withOptional && error) {
+      const msg = error.message || '';
+      if (msg.includes('Could not find') && msg.includes('schema cache')) {
+        continue;
+      }
+      throw new Error(`插入交易记录失败: ${msg}`);
+    }
+
+    throw new Error(`插入交易记录失败: ${error?.message || '未知错误'}`);
   }
 
-  return {
-    transactionId: (data as any).id,
-    holdingUpdated: transaction.status === 'completed',
-  };
+  throw new Error('插入交易记录失败');
 }
 
 export async function removeTransactionWithHoldingUpdate(
