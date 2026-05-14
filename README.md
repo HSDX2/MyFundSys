@@ -97,7 +97,7 @@ npm install
 cp .env.example .env.local
 
 # 3. Run tests
-npm test                    # 503 tests, Vitest
+npm test                    # 511 tests, Vitest
 npm run test:e2e            # Playwright E2E
 
 # 4. Build
@@ -130,7 +130,7 @@ npx vitest run src/__tests__/services/fundApi.test.ts   # Single file
 npm run test:e2e                    # Playwright E2E
 ```
 
-**Framework**: Vitest 4 + @testing-library/react — **527 tests total** (Web 503 + Android 24)
+**Framework**: Vitest 4 + @testing-library/react — **535 tests total** (Web 511 + Android 24)
 
 ## Android App
 

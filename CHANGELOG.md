@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-05-14
+
+### Fixed
+- **10 轮深度代码审核，70+ bug 修复** — 分两个阶段覆盖全部源码
+  - **Round 1-5**（服务层 + 页面 + hooks）：17 个严重 + 10+ 中等 bug（零值映射、NaN 传播、`remaining_shares` 部分卖出、非空断言、catch 未处理 Promise、`as any` 审计、setTimeout 泄漏等）
+  - **Round 6-10**（fundApi/syncService/backtest/Edge Functions/Android App）：45+ bug（缓存击穿、DELETE+INSERT 事务丢失、`hasPoison` 栈溢出、CSV `\r\n`/千位分隔符、`window` undefined 崩溃、Edge Function 超时/URL 编码/NaN 等）
+- **Edge Functions**: 添加 fetch 10s 超时、POST 方法校验、`encodeURIComponent`、`parseFloat` NaN 防护
+- **Android App**: `window` undefined 崩溃修复、`price=0` 数据损坏修复、`route.params` 空守卫
+
+### Changed
+- 全项目测试从 **527** 增长到 **535**（Web 511 + Android 24）
+- 构建包体积保持稳定（JS ~120KB gzip）
+
+### Added
+- `favoriteService.ts` 新增 `addFavoriteFund`（策略导入自动收藏）
+
 ## [2.4.0] - 2026-05-13
 
 ### Added
