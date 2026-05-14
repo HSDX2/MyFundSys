@@ -51,21 +51,16 @@ create index if not exists idx_fund_cache_name on fund_cache(name);
 create index if not exists idx_fund_cache_is_holding on fund_cache(is_holding);
 create index if not exists idx_fund_cache_search_count on fund_cache(search_count desc);
 
--- ============================================
--- 迁移：将原有 funds 数据导入到 fund_cache
--- ============================================
-
--- 插入系统预设基金（如果不存在）
-insert into fund_cache (id, code, name, category, source, is_holding)
-select 
-  id,
-  code,
-  name,
-  category,
-  'system' as source,
-  false as is_holding
-from funds
-on conflict (code) do nothing;
+-- 如果存在旧的 funds 表，将数据迁移到 fund_cache
+do $$
+begin
+  if exists (select from information_schema.tables where table_name = 'funds') then
+    insert into fund_cache (id, code, name, category, source, is_holding)
+    select id, code, name, category, 'system' as source, false as is_holding
+    from funds
+    on conflict (code) do nothing;
+  end if;
+end $$;
 
 -- 添加实时订阅
 alter publication supabase_realtime add table fund_cache;
