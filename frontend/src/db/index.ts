@@ -32,21 +32,26 @@ export interface FavoriteFund {
 export async function resetDatabase(): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  // 先断开 FK 关联，避免外键约束冲突
-  await (supabase.from('transactions') as any).update({ grid_execution_id: null }).neq('grid_execution_id', null);
-  await (supabase.from('grid_executions') as any).update({ transaction_id: null }).neq('transaction_id', null);
+  const errors: string[] = [];
+
+  // 断开 FK 循环引用（transactions ↔ grid_executions），使用 .not().is(null) 正确匹配所有非空行
+  const { error: err1 } = await (supabase.from('transactions') as any).update({ grid_execution_id: null }).not('grid_execution_id', 'is', null);
+  if (err1) errors.push(`解除 transactions.grid_execution_id 失败: ${err1.message}`);
+
+  const { error: err2 } = await (supabase.from('grid_executions') as any).update({ transaction_id: null }).not('transaction_id', 'is', null);
+  if (err2) errors.push(`解除 grid_executions.transaction_id 失败: ${err2.message}`);
 
   // 按依赖顺序删除（子表先删，父表后删）
   const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history', 'pending_alerts'];
-  const errors: string[] = [];
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().neq('id', '0');
     if (error) {
       errors.push(`${table}: ${error.message}`);
     }
   }
+
   if (errors.length > 0) {
-    console.error('重置数据失败:', errors);
+    throw new Error(`重置数据失败:\n${errors.join('\n')}`);
   }
 }
 

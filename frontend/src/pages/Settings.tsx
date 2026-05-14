@@ -24,8 +24,8 @@ const Settings: React.FC = () => {
           await resetDatabase();
           Toast.show({ content: '数据已重置', position: 'bottom' });
           window.location.reload();
-        } catch {
-          Toast.show({ content: '重置失败', position: 'bottom' });
+        } catch (err) {
+          Toast.show({ content: `重置失败: ${err instanceof Error ? err.message : '未知错误'}`, position: 'bottom' });
         }
       },
     });
