@@ -527,7 +527,7 @@ export async function addTransactionWithHoldingUpdate(
 
   const transactionId = crypto.randomUUID();
 
-  const txPayload = {
+  const txPayload: Record<string, unknown> = {
     id: transactionId,
     fund_code: transaction.fundCode,
     fund_name: transaction.fundName,
@@ -537,11 +537,13 @@ export async function addTransactionWithHoldingUpdate(
     amount: transaction.amount,
     fee: transaction.fee || 0,
     date: transaction.date,
-    confirm_date: transaction.confirmDate || null,
     status: transaction.status || 'completed',
     source: transaction.source || 'manual',
     grid_execution_id: transaction.gridExecutionId || null,
   };
+  if (transaction.confirmDate) {
+    txPayload.confirm_date = transaction.confirmDate;
+  }
 
   const { data, error } = await supabase
     .from('transactions')
