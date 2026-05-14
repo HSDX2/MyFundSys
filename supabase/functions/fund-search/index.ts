@@ -54,7 +54,6 @@ serve(async (req: Request) => {
     );
   }
 
-  try {
   let body: Record<string, unknown> = {};
   try {
     try {
