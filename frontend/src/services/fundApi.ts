@@ -7,14 +7,24 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const CACHE_DURATION = 5 * 60 * 1000;
 const navCache = new Map<string, { data: FundApiData; timestamp: number }>();
+const pendingNavRequests = new Map<string, Promise<FundApiData | null>>();
 
 export async function fetchFundNav(fundCode: string): Promise<FundApiData | null> {
+  fundCode = fundCode.trim();
+  if (!fundCode) return null;
   const cached = navCache.get(fundCode);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return cached.data;
   }
 
-  const data = await fetchFromEastMoney(fundCode).catch(() => null);
+  const pending = pendingNavRequests.get(fundCode);
+  if (pending) return pending;
+
+  const promise = fetchFromEastMoney(fundCode).catch(() => null);
+  pendingNavRequests.set(fundCode, promise);
+  const data = await promise;
+  pendingNavRequests.delete(fundCode);
+
   if (data) {
     navCache.set(fundCode, { data, timestamp: Date.now() });
     return data;
@@ -33,7 +43,7 @@ async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null>
     });
     if (error) throw error;
     if (data) {
-      if (data.estimateNav && data.estimateRate !== undefined) {
+      if (data.estimateNav != null && data.estimateRate !== undefined) {
         return {
           code: data.code, name: data.name, nav: data.nav, navDate: data.navDate,
           dailyChange: data.estimateNav - data.nav,

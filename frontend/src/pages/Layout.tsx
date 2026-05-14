@@ -110,7 +110,7 @@ const Layout: React.FC = () => {
 
   const handleLogout = () => {
     Toast.show({ content: '已退出登录', position: 'bottom' });
-    setTimeout(() => signOut(), 500);
+    setTimeout(async () => { try { await signOut(); } catch {} }, 500);
   };
 
   // 渲染当前内容

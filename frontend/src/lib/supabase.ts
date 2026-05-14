@@ -71,31 +71,47 @@ export async function searchFundsFromEdge(keyword: string) {
 /**
  * 订阅交易数据变化
  * @param callback - 数据变化回调函数
- * @returns 订阅对象
+ * @param id - 调用方唯一标识，防止 React 严格模式下通道名冲突
+ * @returns 取消订阅函数
  */
-export function subscribeTransactions(callback: (payload: any) => void) {
-  return supabase
-    .channel('transactions')
+export function subscribeTransactions(callback: (payload: any) => void, id = 'default'): (() => void) | undefined {
+  if (!isSupabaseConfigured()) return;
+  const channelName = `transactions_${id}`;
+  const subscription = supabase
+    .channel(channelName)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'transactions' },
       callback
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.error('交易数据订阅失败:', channelName, status);
+      }
+    });
+  return () => { supabase.removeChannel(subscription); };
 }
 
 /**
  * 订阅持仓数据变化
  * @param callback - 数据变化回调函数
- * @returns 订阅对象
+ * @param id - 调用方唯一标识，防止 React 严格模式下通道名冲突
+ * @returns 取消订阅函数
  */
-export function subscribeHoldings(callback: (payload: any) => void) {
-  return supabase
-    .channel('holdings')
+export function subscribeHoldings(callback: (payload: any) => void, id = 'default'): (() => void) | undefined {
+  if (!isSupabaseConfigured()) return;
+  const channelName = `holdings_${id}`;
+  const subscription = supabase
+    .channel(channelName)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'holdings' },
       callback
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.error('持仓数据订阅失败:', channelName, status);
+      }
+    });
+  return () => { supabase.removeChannel(subscription); };
 }

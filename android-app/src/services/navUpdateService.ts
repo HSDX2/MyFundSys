@@ -10,6 +10,8 @@ import { formatLocalDate } from '../utils/csv';
 import { createAlert } from './alertService';
 import type { Holding, Transaction } from '../types';
 
+let _pendingProcessing = false;
+
 // ============================================
 // 批次（Lot）类型定义
 // ============================================
@@ -610,10 +612,10 @@ export interface ProcessPendingResult {
  */
 export async function processPendingTransactions(): Promise<ProcessPendingResult> {
   // 防止多页面/多组件重复调用
-  if ((window as any).__pendingTransactionsProcessing) {
+  if (_pendingProcessing) {
     return { processedCount: 0, pendingCount: 0, errors: [] };
   }
-  (window as any).__pendingTransactionsProcessing = true;
+  _pendingProcessing = true;
 
   try {
     if (!isSupabaseConfigured()) {
@@ -765,6 +767,6 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
   };
 } finally {
   // 处理完成后重置标记，允许下次调用
-  (window as any).__pendingTransactionsProcessing = false;
+  _pendingProcessing = false;
 }
 }

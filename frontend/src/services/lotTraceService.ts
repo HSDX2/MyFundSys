@@ -50,12 +50,17 @@ export function groupTransactionsByLot(
         const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
         const profit = sellFromLot * sell.price - sellFromLot * lot.cost;
         const profitRate = lot.cost > 0 ? profit / (sellFromLot * lot.cost) : 0;
-        const holdingDays = Math.round(
-          (new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const sellTime = new Date(sell.date).getTime();
+        const buyTime = new Date(lot.date).getTime();
+        const holdingDays = !isNaN(sellTime) && !isNaN(buyTime)
+          ? Math.max(0, Math.round((sellTime - buyTime) / (1000 * 60 * 60 * 24)))
+          : 0;
+
+        const buyTx = buys.find(b => b.id === lot.id);
+        if (!buyTx) continue;
 
         lot.items.push({
-          buyTx: buys.find(b => b.id === lot.id)!,
+          buyTx,
           sellTx: sell,
           soldShares: sellFromLot,
           profit,
@@ -77,12 +82,17 @@ export function groupTransactionsByLot(
         const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
         const profit = sellFromLot * sell.price - sellFromLot * lot.cost;
         const profitRate = lot.cost > 0 ? profit / (sellFromLot * lot.cost) : 0;
-        const holdingDays = Math.round(
-          (new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24)
-        );
+        const sellTime = new Date(sell.date).getTime();
+        const buyTime = new Date(lot.date).getTime();
+        const holdingDays = !isNaN(sellTime) && !isNaN(buyTime)
+          ? Math.max(0, Math.round((sellTime - buyTime) / (1000 * 60 * 60 * 24)))
+          : 0;
+
+        const buyTx = buys.find(b => b.id === lot.id);
+        if (!buyTx) continue;
 
         lot.items.push({
-          buyTx: buys.find(b => b.id === lot.id)!,
+          buyTx,
           sellTx: sell,
           soldShares: sellFromLot,
           profit,
@@ -96,9 +106,10 @@ export function groupTransactionsByLot(
   }
 
   return lots.map(lot => {
-    const buyTx = buys.find(b => b.id === lot.id)!;
+    const buyTx = buys.find(b => b.id === lot.id);
+    if (!buyTx) return null;
     const totalSoldCost = lot.items.reduce((s, i) => s + i.soldShares * lot.cost, 0);
-    return {
+    const timeline: LotTimeline = {
       buyTransaction: buyTx,
       totalShares: lot.shares,
       remainingShares: lot.remainingShares,
@@ -106,7 +117,8 @@ export function groupTransactionsByLot(
       totalSoldCost,
       items: lot.items,
     };
-  });
+    return timeline;
+  }).filter(Boolean) as LotTimeline[];
 }
 
 export async function enrichLotTimelinesWithNav(
@@ -116,7 +128,7 @@ export async function enrichLotTimelinesWithNav(
   const navMap = await batchFetchNav(fundCodes);
   return timelines.map(t => {
     const navInfo = navMap.get(t.buyTransaction.fundCode);
-    if (!navInfo) return t;
+    if (!navInfo || typeof navInfo.nav !== 'number') return t;
     const currentValue = navInfo.nav * t.remainingShares;
     const cost = t.totalCost;
     return {

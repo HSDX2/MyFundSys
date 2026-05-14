@@ -39,11 +39,12 @@ describe('syncService', () => {
       delete: mockDelete,
       select: mockSelect,
     }));
-    const mockNeq = vi.fn().mockResolvedValue({ error: null });
-    mockDelete.mockReturnValue({ neq: mockNeq });
-    mockInsert.mockResolvedValue({ error: null });
-    mockUpsert.mockResolvedValue({ error: null });
-    mockSelect.mockResolvedValue({ error: null, count: 0 });
+    const mockEq = vi.fn().mockResolvedValue({ error: null });
+    const mockSelectBuilder = vi.fn().mockResolvedValue({ data: [], error: null });
+    mockDelete.mockReturnValue({ eq: mockEq });
+    mockInsert.mockResolvedValue({ error: null, data: [] });
+    mockUpsert.mockResolvedValue({ error: null, data: [] });
+    mockSelect.mockReturnValue({ data: [], error: null });
   });
 
   describe('syncHoldingsToSupabase', () => {
@@ -60,7 +61,7 @@ describe('syncService', () => {
       expect(result.message).toContain('0 条持仓');
     });
 
-    it('同步持仓时先清空再插入', async () => {
+    it('同步持仓时先插入再删除', async () => {
       const holdings: Holding[] = [
         {
           id: 'h_001',
@@ -77,7 +78,6 @@ describe('syncService', () => {
 
       const result = await syncHoldingsToSupabase(holdings);
 
-      expect(mockDelete).toHaveBeenCalled();
       expect(mockInsert).toHaveBeenCalled();
       expect(result.success).toBe(true);
     });
@@ -120,7 +120,7 @@ describe('syncService', () => {
       expect(result.message).toContain('0 条交易');
     });
 
-    it('同步交易时先清空再插入', async () => {
+    it('同步交易时先 upsert 再删除', async () => {
       const transactions: Transaction[] = [
         {
           id: 't_001',
@@ -138,7 +138,6 @@ describe('syncService', () => {
 
       const result = await syncTransactionsToSupabase(transactions);
 
-      expect(mockDelete).toHaveBeenCalled();
       expect(mockUpsert).toHaveBeenCalled();
       expect(result.success).toBe(true);
     });
@@ -180,11 +179,18 @@ describe('syncService', () => {
       expect(result.success).toBe(true);
     });
 
-    it('delete 抛异常时返回同步失败', async () => {
-      const mockNeq = vi.fn().mockRejectedValue(new Error('Delete failed'));
-      mockDelete.mockReturnValue({ neq: mockNeq });
+    it('upsert 失败时返回同步失败', async () => {
+      mockUpsert.mockRejectedValue(new Error('Upsert failed'));
 
-      const result = await syncTransactionsToSupabase([]);
+      const transactions: Transaction[] = [
+        {
+          id: 't_001', fundId: 'f_001', fundCode: '000001', fundName: '测试基金',
+          type: 'buy', date: '2024-01-01', amount: 1000, price: 1.0, shares: 1000,
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+      ];
+
+      const result = await syncTransactionsToSupabase(transactions);
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('同步失败');

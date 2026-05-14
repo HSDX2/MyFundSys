@@ -16,6 +16,8 @@ export const GridBatchImport: React.FC<GridBatchImportProps> = ({ onComplete }) 
     const file = e.target.files?.[0];
     if (!file) return;
 
+    e.target.value = '';
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {

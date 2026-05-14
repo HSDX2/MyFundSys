@@ -44,7 +44,6 @@ function getCorsHeaders(req: Request): Record<string, string> {
 serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  // 处理预检请求
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -52,14 +51,29 @@ serve(async (req: Request) => {
     });
   }
 
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: '仅支持 POST 请求' }),
+      { status: 405, headers: corsHeaders }
+    );
+  }
+
+  let body: Record<string, unknown> = {};
   try {
-    // 从 POST body 获取参数（supabase.functions.invoke 使用 POST 传参）
-    const body = await req.json().catch(() => ({}));
-    const code = body.code;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: '请求体必须是有效的 JSON' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const code = String(body.code || '').trim();
     const pageIndex = body.pageIndex ?? 1;
     const pageSize = body.pageSize ?? 20;
-    const startDate = body.startDate ?? '';
-    const endDate = body.endDate ?? '';
+    const startDate = body.startDate ? String(body.startDate) : '';
+    const endDate = body.endDate ? String(body.endDate) : '';
 
     if (!code) {
       return new Response(
@@ -68,16 +82,22 @@ serve(async (req: Request) => {
       );
     }
 
-    // 调用东方财富历史净值 API
-    const historyUrl = `https://api.fund.eastmoney.com/f10/lsjz?fundCode=${code}&pageIndex=${pageIndex}&pageSize=${pageSize}&startDate=${startDate}&endDate=${endDate}&_=${Date.now()}`;
+    let historyUrl = `https://api.fund.eastmoney.com/f10/lsjz?fundCode=${encodeURIComponent(code)}&pageIndex=${pageIndex}&pageSize=${pageSize}`;
+    if (startDate) historyUrl += `&startDate=${encodeURIComponent(startDate)}`;
+    if (endDate) historyUrl += `&endDate=${encodeURIComponent(endDate)}`;
+    historyUrl += `&_=${Date.now()}`;
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(historyUrl, {
+      signal: controller.signal,
       headers: {
         'User-Agent': 'EMProjJijin/8.4.6 (iPhone; iOS 16.0; Scale/3.00)',
         'Accept': 'application/json',
         'Referer': 'https://fund.eastmoney.com/',
       },
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       throw new Error(`东方财富 API 返回错误: ${response.status}`);
@@ -93,16 +113,16 @@ serve(async (req: Request) => {
       .filter((item: any) => item.FSRQ && item.DWJZ)
       .map((item: any) => ({
         date: item.FSRQ,
-        nav: parseFloat(item.DWJZ),
-        accNav: parseFloat(item.LJJZ || '0'),
-        dailyChangeRate: parseFloat(item.JZZZL || '0'),
+        nav: parseFloat(item.DWJZ) || 0,
+        accNav: parseFloat(item.LJJZ || '0') || 0,
+        dailyChangeRate: parseFloat(item.JZZZL || '0') || 0,
         buyStatus: item.SGZT || '-',
         sellStatus: item.SHZT || '-',
       }));
 
     return new Response(JSON.stringify(records), { headers: corsHeaders });
   } catch (error) {
-    console.error('获取历史净值失败:', error);
+    console.error('获取历史净值失败:', { code: body.code, error: error instanceof Error ? error.message : String(error) });
     return new Response(
       JSON.stringify({ error: '获取历史净值失败', message: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }

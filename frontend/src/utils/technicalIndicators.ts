@@ -28,6 +28,7 @@ export interface KDJPoint {
  * @param n 周期
  */
 export function calculateEMA(data: number[], n: number): number[] {
+  if (n < 1) return data.map(() => NaN);
   const ema: number[] = [];
   const alpha = 2 / (n + 1);
   

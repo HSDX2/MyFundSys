@@ -15,8 +15,12 @@ const StrategyPage: React.FC = () => {
 
   const handleImportComplete = async () => {
     setShowImportDialog(false);
-    await refresh();
-    Toast.show({ content: '导入完成', position: 'bottom' });
+    try {
+      await refresh();
+      Toast.show({ content: '导入完成', position: 'bottom' });
+    } catch {
+      Toast.show({ content: '刷新失败', position: 'bottom' });
+    }
   };
 
   // 计算汇总数据

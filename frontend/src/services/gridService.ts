@@ -8,6 +8,8 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { addTransactionWithHoldingUpdate } from './navUpdateService';
 import { addFavoriteFund } from './favoriteService';
 import { GRID_TYPES } from '../types';
+const SHARE_PRECISION = 10000;
+
 import type {
   GridType,
   GridLevel,
@@ -58,7 +60,7 @@ export function calculateGridLevels(
 }
 
 function roundPrice(price: number): number {
-  return Math.round(price * 10000) / 10000;
+  return Math.round(price * SHARE_PRECISION) / SHARE_PRECISION;
 }
 
 // ============================================
@@ -194,9 +196,12 @@ export async function executeGrid(
   const today = new Date().toISOString().split('T')[0];
 
   if (action === 'buy') {
-    const investmentAmount = params.investmentAmount!;
+    if (params.investmentAmount == null || params.investmentAmount <= 0) {
+      throw new Error('买入操作必须指定有效的 investmentAmount');
+    }
+    const investmentAmount = params.investmentAmount;
     const shares = investmentAmount / currentNav;
-    const roundedShares = Math.round(shares * 10000) / 10000;
+    const roundedShares = Math.round(shares * SHARE_PRECISION) / SHARE_PRECISION;
 
     // 1. 创建买入交易记录
     const { transactionId } = await addTransactionWithHoldingUpdate({
@@ -256,7 +261,10 @@ export async function executeGrid(
     throw new Error('卖出操作必须指定 buyExecutionId');
   }
 
-  const sellShares = params.sellShares!;
+  if (params.sellShares == null || params.sellShares <= 0) {
+    throw new Error('卖出操作必须指定有效的 sellShares');
+  }
+  const sellShares = params.sellShares;
   const sellAmount = sellShares * currentNav;
 
   // 1. 创建卖出交易记录（关联买入 execution）
@@ -268,7 +276,7 @@ export async function executeGrid(
     date: today,
     amount: Math.round(sellAmount * 100) / 100,
     price: currentNav,
-    shares: Math.round(sellShares * 10000) / 10000,
+    shares: Math.round(sellShares * SHARE_PRECISION) / SHARE_PRECISION,
     fee: 0,
     status: 'completed',
     source: 'grid',
@@ -287,7 +295,7 @@ export async function executeGrid(
       status: 'executed',
       transaction_id: transactionId,
       executed_nav: currentNav,
-      executed_shares: Math.round(sellShares * 10000) / 10000,
+      executed_shares: Math.round(sellShares * SHARE_PRECISION) / SHARE_PRECISION,
       executed_at: new Date().toISOString(),
     })
     .select()
@@ -297,10 +305,18 @@ export async function executeGrid(
     throw new Error(`写入卖出执行记录失败: ${sellError.message}`);
   }
 
-  // 3. 更新买入 execution 的 remaining_shares
+  // 3. 更新买入 execution 的 remaining_shares（支持部分卖出）
+  const { data: buyExec } = await (supabase
+    .from('grid_executions') as any)
+    .select('remaining_shares')
+    .eq('id', buyExecutionId)
+    .maybeSingle();
+
+  const currentRemaining = buyExec?.remaining_shares != null ? buyExec.remaining_shares : 0;
+  const newRemaining = Math.max(0, Math.round((currentRemaining - sellShares) * SHARE_PRECISION) / SHARE_PRECISION);
   const { error: updateError } = await (supabase
     .from('grid_executions') as any)
-    .update({ remaining_shares: 0 })
+    .update({ remaining_shares: newRemaining })
     .eq('id', buyExecutionId);
 
   if (updateError) {
@@ -331,8 +347,33 @@ export async function cancelGridExecution(executionId: string): Promise<void> {
       .eq('grid_execution_id', executionId)
       .eq('type', 'sell')
       .limit(1);
-    if (sellTxs && (sellTxs as any[]).length > 0) {
+    if (sellTxs && sellTxs.length > 0) {
       throw new Error('该买入已被卖出引用，无法取消。请先删除对应的卖出记录。');
+    }
+  }
+
+  // 如果是卖出 execution 被取消，恢复对应买入 execution 的 remaining_shares
+  if (exec.action === 'sell' && exec.transaction_id) {
+    const { data: sellTx } = await (supabase
+      .from('transactions') as any)
+      .select('grid_execution_id')
+      .eq('id', exec.transaction_id)
+      .maybeSingle();
+    if (sellTx?.grid_execution_id) {
+      const buyExecId = sellTx.grid_execution_id;
+      const { data: buyExec } = await (supabase
+        .from('grid_executions') as any)
+        .select('remaining_shares')
+        .eq('id', buyExecId)
+        .maybeSingle();
+      if (buyExec) {
+        const sellShares = exec.executed_shares ?? 0;
+        const currentRemaining = buyExec.remaining_shares ?? 0;
+        const restoredRemaining = Math.round((currentRemaining + sellShares) * SHARE_PRECISION) / SHARE_PRECISION;
+        await (supabase.from('grid_executions') as any)
+          .update({ remaining_shares: restoredRemaining })
+          .eq('id', buyExecId);
+      }
     }
   }
 
@@ -380,25 +421,25 @@ export function deriveGridStatuses(
       let status: GridLevelStatus;
       let distancePct: number;
 
+      const safeSellPrice = grid.sell_price || 1;
+      const safeTriggerPrice = grid.trigger_price || 1;
+
       if (sellExec) {
-        // 已完全卖出
         status = 'executed';
-        distancePct = ((currentNav - grid.sell_price) / grid.sell_price) * 100;
+        distancePct = ((currentNav - safeSellPrice) / safeSellPrice) * 100;
       } else if (buyExec) {
-        // 已买入
         if (isLiquidating) {
-          // 清仓模式下，已买入格子保持持有中状态，不显示可卖出按钮
           status = 'executed';
         } else {
           status = currentNav >= grid.sell_price ? 'sell_triggered' : 'executed';
         }
-        distancePct = ((currentNav - grid.sell_price) / grid.sell_price) * 100;
+        distancePct = ((currentNav - safeSellPrice) / safeSellPrice) * 100;
       } else if (currentNav <= grid.trigger_price) {
         status = 'triggered';
-        distancePct = ((currentNav - grid.trigger_price) / grid.trigger_price) * 100;
+        distancePct = ((currentNav - safeTriggerPrice) / safeTriggerPrice) * 100;
       } else {
         status = 'above';
-        distancePct = ((currentNav - grid.trigger_price) / grid.trigger_price) * 100;
+        distancePct = ((currentNav - safeTriggerPrice) / safeTriggerPrice) * 100;
       }
 
       return {
@@ -422,8 +463,9 @@ export function calculateSellShares(
   buyShares: number,
   profitRetentionPct: number
 ): { sellShares: number; retainShares: number } {
-  const retainShares = Math.round(buyShares * profitRetentionPct * 10000) / 10000;
-  const sellShares = Math.max(0, Math.round((buyShares - retainShares) * 10000) / 10000);
+  const clampedPct = Math.max(0, Math.min(1, profitRetentionPct || 0));
+  const retainShares = Math.round(buyShares * clampedPct * SHARE_PRECISION) / SHARE_PRECISION;
+  const sellShares = Math.max(0, Math.round((buyShares - retainShares) * SHARE_PRECISION) / SHARE_PRECISION);
   return { sellShares, retainShares };
 }
 
@@ -473,10 +515,14 @@ export function computeFundOverview(
     for (const level of levels) {
       totalGridCount++;
 
-      // 已买入（持有中或可卖出）
+      // 已买入（持有中或可卖出），考虑部分卖出后剩余份额
       if (level.execution && !level.sellExecution) {
         executedCount++;
-        capitalDeployed += level.investment;
+        const exec = level.execution;
+        const ratio = exec.executed_shares && exec.executed_shares > 0
+          ? Math.min(1, (exec.remaining_shares ?? 0) / exec.executed_shares)
+          : 1;
+        capitalDeployed += Math.round(level.investment * ratio * 100) / 100;
       } else if (level.status === 'triggered') {
         triggeredPendingCount++;
       }
@@ -551,11 +597,16 @@ export async function batchImportGridStrategies(
   for (const item of jsonData) {
     try {
       // 检查是否已存在
-      const { data: existing } = await supabase
+      const { data: existing, error: queryError } = await supabase
         .from('grid_strategies')
         .select('id')
         .eq('fund_code', item.fund_code)
         .maybeSingle();
+
+      if (queryError) {
+        errors.push(`${item.fund_code}: 查询失败 - ${queryError.message}`);
+        continue;
+      }
 
       if (existing) {
         // 更新现有策略
@@ -639,10 +690,10 @@ function mapDbGridExecution(row: any): GridExecution {
     action: row.action,
     status: row.status,
     transaction_id: row.transaction_id,
-    executed_nav: row.executed_nav ? Number(row.executed_nav) : undefined,
-    executed_amount: row.executed_amount ? Number(row.executed_amount) : undefined,
-    executed_shares: row.executed_shares ? Number(row.executed_shares) : undefined,
-    remaining_shares: row.remaining_shares ? Number(row.remaining_shares) : undefined,
+    executed_nav: row.executed_nav != null ? Number(row.executed_nav) : undefined,
+    executed_amount: row.executed_amount != null ? Number(row.executed_amount) : undefined,
+    executed_shares: row.executed_shares != null ? Number(row.executed_shares) : undefined,
+    remaining_shares: row.remaining_shares != null ? Number(row.remaining_shares) : undefined,
     executed_at: row.executed_at,
   };
 }

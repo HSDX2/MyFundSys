@@ -43,7 +43,7 @@ export function exportToCSV(data: any[], filename: string) {
 
 // CSV 解析函数
 export function parseCSV(csvText: string): any[] {
-  const lines = csvText.trim().split('\n');
+  const lines = csvText.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
   const headers = parseCSVLine(lines[0]);
@@ -71,13 +71,14 @@ function parseCSVLine(line: string): string[] {
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
         current += '"';
-        i++; // 跳过下一个引号
+        i++;
       } else {
         inQuotes = !inQuotes;
       }
     } else if (char === ',' && !inQuotes) {
       result.push(current.trim());
       current = '';
+    } else if (char === '\r') {
     } else {
       current += char;
     }
@@ -174,11 +175,12 @@ export function importTransactionsFromCSV(csvText: string): Omit<Transaction, 'i
       throw new Error(`第 ${rowNumber} 行: 类型必须为"买入"或"卖出"`);
     }
 
-    // 解析数值
-    const amount = parseFloat(row['金额']);
-    const price = parseFloat(row['价格']);
-    const shares = parseFloat(row['份额']);
-    const fee = row['手续费'] ? parseFloat(row['手续费']) : 0;
+    // 解析数值（支持千位分隔符）
+    const toNum = (v: unknown) => parseFloat(String(v).replace(/,/g, ''));
+    const amount = toNum(row['金额']);
+    const price = toNum(row['价格']);
+    const shares = toNum(row['份额']);
+    const fee = row['手续费'] ? toNum(row['手续费']) : 0;
 
     if (isNaN(amount) || isNaN(price) || isNaN(shares)) {
       throw new Error(`第 ${rowNumber} 行: 金额、价格、份额必须为有效数字`);

@@ -126,7 +126,7 @@ function fromDbTransaction(db: DbTransaction): Transaction {
     shares: db.shares,
     fee: db.fee,
     status: db.status,
-    source: (db.source as 'manual' | 'grid') || 'manual',
+    source: db.source === 'grid' ? 'grid' : 'manual',
     gridExecutionId: db.grid_execution_id,
     createdAt: db.created_at,
   };
@@ -141,12 +141,21 @@ export async function syncHoldingsToSupabase(holdings: Holding[]): Promise<SyncR
   }
 
   try {
-    await supabase.from('holdings').delete().neq('id', '0');
+    const { data: oldData } = await supabase.from('holdings').select('id, fund_code');
+    const oldHoldings = (oldData as any[]) || [];
+    const oldCodes = new Set(oldHoldings.map(h => h.fund_code));
 
     if (holdings.length > 0) {
       const dbHoldings = holdings.map(toDbHolding);
       const { error } = await supabase.from('holdings').insert(dbHoldings as any);
       if (error) throw error;
+    }
+
+    const newCodes = new Set(holdings.map(h => h.fundCode));
+    for (const old of oldHoldings) {
+      if (!newCodes.has(old.fund_code)) {
+        await supabase.from('holdings').delete().eq('id', old.id);
+      }
     }
 
     return { success: true, message: `同步了 ${holdings.length} 条持仓数据` };
@@ -164,14 +173,20 @@ export async function syncTransactionsToSupabase(transactions: Transaction[]): P
   }
 
   try {
-    // 清空现有数据
-    await supabase.from('transactions').delete().neq('id', '0');
+    const { data: oldTxData } = await supabase.from('transactions').select('id');
+    const oldTxIds = new Set((oldTxData as any[] || []).map(t => t.id));
 
-    // 插入新数据
     if (transactions.length > 0) {
       const dbTransactions = transactions.map(toDbTransaction);
       const { error } = await supabase.from('transactions').upsert(dbTransactions as any, { onConflict: 'id' });
       if (error) throw error;
+    }
+
+    const newIds = new Set(transactions.map(t => t.id).filter(Boolean));
+    for (const oldId of oldTxIds) {
+      if (!newIds.has(oldId)) {
+        await supabase.from('transactions').delete().eq('id', oldId);
+      }
     }
 
     return { success: true, message: `同步了 ${transactions.length} 条交易记录` };
@@ -194,13 +209,21 @@ export async function fetchAllDataFromSupabase() {
       supabase.from('transactions').select('*'),
     ]);
 
-    // 查询错误已在返回结果中体现，由调用方处理
+    if (holdingsRes.error) {
+      console.error('查询持仓失败:', holdingsRes.error);
+      return { holdings: [], transactions: [] };
+    }
+    if (transactionsRes.error) {
+      console.error('查询交易记录失败:', transactionsRes.error);
+      return { holdings: [], transactions: [] };
+    }
 
     const holdings = (holdingsRes.data as DbHolding[] || []).map(fromDbHolding);
     const transactions = (transactionsRes.data as DbTransaction[] || []).map(fromDbTransaction);
 
     return { holdings, transactions };
-  } catch {
+  } catch (err) {
+    console.error('获取数据异常:', err);
     return { holdings: [], transactions: [] };
   }
 }

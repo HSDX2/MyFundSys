@@ -5,7 +5,7 @@
  * 持仓从交易记录派生，不再依赖 holdings 表
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { removeTransactionWithHoldingUpdate, removeHoldingWithTransactions, deriveLots, summarizeHoldings } from '../services/navUpdateService';
 import { batchFetchNav } from '../services/fundApi';
@@ -126,6 +126,8 @@ export function useHoldings() {
           console.error('加载持仓失败:', error);
         }
       }
+    } catch (err) {
+      console.error('加载持仓异常:', err);
     } finally {
       setLoading(false);
     }
@@ -166,6 +168,8 @@ export function useTransactions() {
           console.error('加载交易记录失败:', error);
         }
       }
+    } catch (err) {
+      console.error('加载交易记录异常:', err);
     } finally {
       setLoading(false);
     }
@@ -263,6 +267,7 @@ async function enrichHoldingsWithNav(summaries: ReturnType<typeof summarizeHoldi
 export function useStrategies() {
   const [strategies, setStrategies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const loadStrategies = useCallback(async () => {
     setLoading(true);
@@ -276,7 +281,7 @@ export function useStrategies() {
       localStorage.removeItem('customStrategies');
       setStrategies([]);
       // 延迟 Toast 避免初始化时渲染问题
-      setTimeout(() => {
+      toastTimerRef.current = setTimeout(() => {
         import('antd-mobile').then(({ Toast }) => {
           Toast.show({ content: '本地策略数据已损坏，已自动重置', position: 'bottom' });
         });
@@ -284,6 +289,12 @@ export function useStrategies() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {

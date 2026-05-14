@@ -177,6 +177,16 @@ describe('updateLocalHoldingAfterTransaction', () => {
       expect(result.holding).toBeNull();
       expect(result.shouldDelete).toBe(true);
     });
+
+    it('卖出份额超过持有份额时标记删除', () => {
+      const existing = makeHolding({ shares: 500, avgCost: 1.0, totalCost: 500 });
+      const tx = makeSellTx({ shares: 1000, amount: 1500 });
+
+      const result = updateLocalHoldingAfterTransaction(existing, tx);
+
+      expect(result.holding).toBeNull();
+      expect(result.shouldDelete).toBe(true);
+    });
   });
 });
 
@@ -451,8 +461,8 @@ describe('removeHoldingWithTransactions', () => {
     await expect(removeHoldingWithTransactions('000001')).resolves.toBeUndefined();
   });
 
-  it('空 fundCode 直接返回', async () => {
-    await expect(removeHoldingWithTransactions('')).resolves.toBeUndefined();
+  it('空 fundCode 抛出错误', async () => {
+    await expect(removeHoldingWithTransactions('')).rejects.toThrow('fundCode 不能为空');
   });
 
   it('删除失败抛出错误', async () => {

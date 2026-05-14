@@ -82,15 +82,18 @@ function validateImportData(data: unknown): { holdings: unknown[]; transactions:
   }
   // 拒绝原型污染键
   const poisonKeys = ['__proto__', 'constructor', 'prototype'];
-  function hasPoison(obj: unknown): boolean {
+  function hasPoison(obj: unknown, seen?: Set<object>): boolean {
     if (!obj || typeof obj !== 'object') return false;
+    if (!seen) seen = new Set();
+    if (seen.has(obj)) return false;
+    seen.add(obj);
     for (const [k, v] of Object.entries(obj)) {
       if (poisonKeys.includes(k)) return true;
-      if (hasPoison(v)) return true;
+      if (hasPoison(v, seen)) return true;
     }
     return false;
   }
-  if (holdings.some(hasPoison) || transactions.some(hasPoison)) {
+  if (holdings.some(v => hasPoison(v)) || transactions.some(v => hasPoison(v))) {
     throw new Error('导入数据包含非法键');
   }
   return { holdings, transactions };
@@ -109,30 +112,30 @@ export async function importDatabase(jsonString: string): Promise<void> {
   }
   const { holdings, transactions } = validateImportData(data);
 
-  if (holdings.length) {
-    await supabase.from('holdings').delete().neq('id', '0');
-    await supabase.from('holdings').insert(holdings as any);
-  }
-  if (transactions.length) {
-    await supabase.from('transactions').delete().neq('id', '0');
-    await supabase.from('transactions').insert(transactions as any);
-  }
-
-  // 导入网格数据（如果存在）
   const obj = data as Record<string, unknown>;
   const gridStrategies = Array.isArray(obj.grid_strategies) ? obj.grid_strategies : [];
   const gridExecutions = Array.isArray(obj.grid_executions) ? obj.grid_executions : [];
   const favoriteFunds = Array.isArray(obj.favorite_funds) ? obj.favorite_funds : [];
+
+  // 先 INSERT 再 DELETE，防止数据丢失
+  if (holdings.length) {
+    const { error: insErr } = await supabase.from('holdings').insert(holdings as any);
+    if (!insErr) await supabase.from('holdings').delete().neq('id', '0');
+  }
+  if (transactions.length) {
+    const { error: insErr } = await supabase.from('transactions').insert(transactions as any);
+    if (!insErr) await supabase.from('transactions').delete().neq('id', '0');
+  }
   if (gridStrategies.length) {
-    await supabase.from('grid_strategies').delete().neq('id', '0');
-    await supabase.from('grid_strategies').insert(gridStrategies as any);
+    const { error: insErr } = await supabase.from('grid_strategies').insert(gridStrategies as any);
+    if (!insErr) await supabase.from('grid_strategies').delete().neq('id', '0');
   }
   if (gridExecutions.length) {
-    await supabase.from('grid_executions').delete().neq('id', '0');
-    await supabase.from('grid_executions').insert(gridExecutions as any);
+    const { error: insErr } = await supabase.from('grid_executions').insert(gridExecutions as any);
+    if (!insErr) await supabase.from('grid_executions').delete().neq('id', '0');
   }
   if (favoriteFunds.length) {
-    await supabase.from('favorite_funds').delete().neq('id', '0');
-    await supabase.from('favorite_funds').insert(favoriteFunds as any);
+    const { error: insErr } = await supabase.from('favorite_funds').insert(favoriteFunds as any);
+    if (!insErr) await supabase.from('favorite_funds').delete().neq('id', '0');
   }
 }

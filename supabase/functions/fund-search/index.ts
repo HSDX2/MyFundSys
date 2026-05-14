@@ -43,19 +43,30 @@ function getCorsHeaders(req: Request): Record<string, string> {
 serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  // 处理预检请求
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      status: 204,
-      headers: corsHeaders 
-    });
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: '仅支持 POST 请求' }),
+      { status: 405, headers: corsHeaders }
+    );
   }
 
   try {
-    // 从 POST body 获取搜索关键词（supabase.functions.invoke 使用 POST 传参）
-    const body = await req.json().catch(() => ({}));
-    const keyword = body.keyword;
+  let body: Record<string, unknown> = {};
+  try {
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: '请求体必须是有效的 JSON' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
+    const keyword = body.keyword;
     if (!keyword) {
       return new Response(
         JSON.stringify({ error: '搜索关键词不能为空' }),
@@ -63,16 +74,19 @@ serve(async (req: Request) => {
       );
     }
 
-    // 调用东方财富搜索 API（使用 fundsuggest 接口，返回 BACKCODE 字段）
-    const searchUrl = `https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx?m=9&key=${encodeURIComponent(keyword)}`;
+    const searchUrl = `https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx?m=9&key=${encodeURIComponent(String(keyword))}`;
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const response = await fetch(searchUrl, {
+      signal: controller.signal,
       headers: {
         'User-Agent': 'EMProjJijin/8.4.6 (iPhone; iOS 16.0; Scale/3.00)',
         'Accept': 'application/json',
         'Referer': 'https://fund.eastmoney.com/',
       },
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       throw new Error(`搜索 API 返回错误: ${response.status}`);
@@ -84,11 +98,9 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify([]), { headers: corsHeaders });
     }
 
-    // 过滤只保留基金，并处理后端收费基金
     const funds: FundSearchResult[] = result.Datas
       .filter((item: any) => item.CODE && item.NAME)
       .map((item: any) => {
-        // 后端收费基金使用前端代码（BACKCODE），确保净值查询正常
         const code = item.BACKCODE || item.FundBaseInfo?.FCODE || item.CODE;
         return {
           code,
@@ -99,7 +111,7 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify(funds), { headers: corsHeaders });
   } catch (error) {
-    console.error('基金搜索失败:', error);
+    console.error('基金搜索失败:', { keyword: body?.keyword, error: error instanceof Error ? error.message : String(error) });
     return new Response(
       JSON.stringify({ error: '基金搜索失败', message: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }

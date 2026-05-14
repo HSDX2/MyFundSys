@@ -6,7 +6,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { formatMoney } from '../utils';
 
 export default function FundDetailScreen({ route }: any) {
-  const { fundCode } = route.params;
+  const { fundCode = '' } = route.params ?? {};
   const [fundData, setFundData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -14,7 +14,7 @@ export default function FundDetailScreen({ route }: any) {
   useEffect(() => {
     setLoading(true);
     fetchFundNav(fundCode).then(d => { setFundData(d); setLoading(false); }).catch(() => setLoading(false));
-    if (isSupabaseConfigured()) supabase.from('favorite_funds').select('*').eq('fund_code', fundCode).maybeSingle().then(({ data }) => setIsFavorite(!!data));
+    if (isSupabaseConfigured()) supabase.from('favorite_funds').select('*').eq('fund_code', fundCode).maybeSingle().then(({ data }) => setIsFavorite(!!data)).catch(() => {});
   }, [fundCode]);
 
   const toggleFav = async () => {

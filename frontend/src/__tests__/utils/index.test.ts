@@ -160,12 +160,12 @@ describe('formatDate', () => {
     expect(formatDate('2024-03-15T08:30:00.000Z')).toBe('2024/03/15');
   });
 
-  it('无效日期字符串：返回 Invalid Date', () => {
-    expect(formatDate('not-a-date')).toBe('Invalid Date');
+  it('无效日期字符串：返回空字符串', () => {
+    expect(formatDate('not-a-date')).toBe('');
   });
 
-  it('空字符串：返回 Invalid Date', () => {
-    expect(formatDate('')).toBe('Invalid Date');
+  it('空字符串：返回空字符串', () => {
+    expect(formatDate('')).toBe('');
   });
 });
 

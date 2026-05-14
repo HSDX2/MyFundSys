@@ -552,6 +552,33 @@ describe('gridService', () => {
         currentNav: 0.48,
       })).rejects.toThrow('写入买入执行记录失败');
     });
+
+    it('买入操作缺少 investmentAmount 时抛出错误', async () => {
+      await expect(executeGrid({
+        strategyId: 'gs_001',
+        fundCode: '000001',
+        fundName: '测试基金',
+        gridType: 'small',
+        gridLevel: 1,
+        action: 'buy',
+        triggerPrice: 0.5,
+        currentNav: 0.48,
+      } as any)).rejects.toThrow('必须指定有效的 investmentAmount');
+    });
+
+    it('买入操作 investmentAmount 为 0 时抛出错误', async () => {
+      await expect(executeGrid({
+        strategyId: 'gs_001',
+        fundCode: '000001',
+        fundName: '测试基金',
+        gridType: 'small',
+        gridLevel: 1,
+        action: 'buy',
+        triggerPrice: 0.5,
+        investmentAmount: 0,
+        currentNav: 0.48,
+      })).rejects.toThrow('必须指定有效的 investmentAmount');
+    });
   });
 
   // ============================================
@@ -998,6 +1025,35 @@ describe('gridService', () => {
       })).rejects.toThrow('卖出操作必须指定 buyExecutionId');
     });
 
+    it('卖出操作缺少 sellShares 时抛出错误', async () => {
+      await expect(executeGrid({
+        strategyId: 'gs_001',
+        fundCode: '000001',
+        fundName: '测试基金',
+        gridType: 'small',
+        gridLevel: 1,
+        action: 'sell',
+        triggerPrice: 0.5,
+        currentNav: 0.6,
+        buyExecutionId: 'ge_buy_001',
+      } as any)).rejects.toThrow('必须指定有效的 sellShares');
+    });
+
+    it('卖出操作 sellShares 为 0 时抛出错误', async () => {
+      await expect(executeGrid({
+        strategyId: 'gs_001',
+        fundCode: '000001',
+        fundName: '测试基金',
+        gridType: 'small',
+        gridLevel: 1,
+        action: 'sell',
+        triggerPrice: 0.5,
+        sellShares: 0,
+        currentNav: 0.6,
+        buyExecutionId: 'ge_buy_001',
+      })).rejects.toThrow('必须指定有效的 sellShares');
+    });
+
     it('卖出执行记录写入失败抛出错误', async () => {
       mockInsertResult.mockResolvedValue({ data: null, error: { message: 'Insert failed' } });
 
@@ -1042,6 +1098,24 @@ describe('gridService', () => {
       const result = calculateSellShares(1234.5678, 0.3333);
       expect(result.retainShares).toBeCloseTo(411.48, 2);
       expect(result.sellShares).toBeCloseTo(823.09, 2);
+    });
+
+    it('利润留存比例负值时自动夹紧为0（全部卖出）', () => {
+      const result = calculateSellShares(1000, -0.5);
+      expect(result.sellShares).toBe(1000);
+      expect(result.retainShares).toBe(0);
+    });
+
+    it('利润留存比例超过100%时自动夹紧为1（全部保留）', () => {
+      const result = calculateSellShares(1000, 2);
+      expect(result.sellShares).toBe(0);
+      expect(result.retainShares).toBe(1000);
+    });
+
+    it('利润留存比例为空值时视为0', () => {
+      const result = calculateSellShares(1000, null as any);
+      expect(result.sellShares).toBe(1000);
+      expect(result.retainShares).toBe(0);
     });
   });
 

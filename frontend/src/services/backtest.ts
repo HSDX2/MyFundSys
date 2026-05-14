@@ -27,7 +27,8 @@ export async function runBacktest(params: BacktestParams): Promise<BacktestResul
   // 交易记录
   const transactions: Transaction[] = [];
 
-  for (const data of priceData) {
+  for (let idx = 0; idx < priceData.length; idx++) {
+    const data = priceData[idx];
     const currentValue = cash + shares * data.price;
 
     // 应用策略规则
@@ -78,7 +79,7 @@ export async function runBacktest(params: BacktestParams): Promise<BacktestResul
     }
 
     // 最后一天记录交易后净值，其余记录交易前净值
-    const isLast = data === priceData[priceData.length - 1];
+    const isLast = idx === priceData.length - 1;
     equityCurve.push({
       date: data.date,
       value: isLast ? cash + shares * data.price : currentValue,
@@ -86,12 +87,14 @@ export async function runBacktest(params: BacktestParams): Promise<BacktestResul
   }
 
   const finalValue = equityCurve[equityCurve.length - 1]?.value || 0;
-  const totalReturn = (finalValue - initialCapital) / initialCapital;
+  const totalReturn = initialCapital > 0 ? (finalValue - initialCapital) / initialCapital : 0;
 
   // 计算年化收益率
   const days = priceData.length;
   const years = days / 252;
-  const annualizedReturn = Math.pow(1 + totalReturn, 1 / years) - 1;
+  const annualizedReturn = totalReturn > -1 && years > 0
+    ? Math.pow(1 + totalReturn, 1 / years) - 1
+    : totalReturn;
 
   // 计算最大回撤
   const maxDrawdown = calculateMaxDrawdown(equityCurve);
@@ -161,9 +164,11 @@ export function calculateMaxDrawdown(equityCurve: { date: string; value: number 
     if (point.value > peak) {
       peak = point.value;
     }
-    const drawdown = (peak - point.value) / peak;
-    if (drawdown > maxDrawdown) {
-      maxDrawdown = drawdown;
+    if (peak > 0) {
+      const drawdown = (peak - point.value) / peak;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
     }
   }
 
@@ -176,7 +181,8 @@ export function calculateSharpeRatio(equityCurve: { date: string; value: number 
 
   const returns: number[] = [];
   for (let i = 1; i < equityCurve.length; i++) {
-    const dailyReturn = (equityCurve[i].value - equityCurve[i - 1].value) / equityCurve[i - 1].value;
+    const prev = equityCurve[i - 1].value;
+    const dailyReturn = prev !== 0 ? (equityCurve[i].value - prev) / prev : 0;
     returns.push(dailyReturn);
   }
 
@@ -210,7 +216,7 @@ export async function buildPriceDataFromHistory(
   }
 
   // 按日期升序排列
-  const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const sorted = [...history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // 转换格式，使用净值作为价格
   return sorted.map(item => ({

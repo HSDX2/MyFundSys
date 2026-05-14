@@ -30,11 +30,7 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
   const [loading, setLoading] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  useEffect(() => {
-    loadFavorites();
-  }, []);
-
-  const loadFavorites = async () => {
+  const loadFavorites = useCallback(async () => {
     try {
       setLoading(true);
       if (!isSupabaseConfigured()) {
@@ -59,34 +55,35 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
           }
         })
       );
-      
+
       setFavorites(listWithNav);
-      loadHistoryData(listWithNav);
+      await loadHistoryData(listWithNav);
     } catch {
-      // 静默忽略加载错误
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadHistoryData = async (funds: FundWithData[]) => {
+  async function loadHistoryData(funds: FundWithData[]) {
     if (funds.length === 0) return;
-    
+
     setLoadingHistory(true);
     try {
       const codes = funds.map(f => f.fund_code);
       const historyMap = await batchGetFundHistory(codes, 90);
-      
       setFavorites(prev => prev.map(fund => ({
         ...fund,
         historyData: historyMap[fund.fund_code] || []
       })));
     } catch {
-      // 静默忽略历史数据加载错误
     } finally {
       setLoadingHistory(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
 
   const handleRemove = async (id: string) => {
     try {
@@ -110,7 +107,7 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
     setLoading(true);
     await loadFavorites();
     Toast.show({ content: '已刷新', position: 'bottom' });
-  }, []);
+  }, [loadFavorites]);
 
   if (loading) {
     return (

@@ -88,7 +88,7 @@ const Transactions: React.FC = () => {
   const [selectedDateNav, setSelectedDateNav] = useState<{ nav: number; date: string } | null>(null);
   const [isDateNavLoading, setIsDateNavLoading] = useState(false);
   const [isPendingNav, setIsPendingNav] = useState(false);
-  const navLoadedRef = useRef(false);
+  const navLoadedRef = useRef<string | false>(false);
 
   const [refreshingPending, setRefreshingPending] = useState(false);
   const [alerts, setAlerts] = useState<PendingAlert[]>([]);
@@ -243,9 +243,15 @@ const Transactions: React.FC = () => {
     const nav = selectedDateNav?.nav || currentNav;
     if (!nav) return;
 
-    // NAV 首次加载时自动计算，之后不再覆盖用户手动输入
-    if (navLoadedRef.current) return;
-    navLoadedRef.current = true;
+    if (navLoadedRef.current) {
+      if (selectedDateNav && navLoadedRef.current !== 'selected') {
+        navLoadedRef.current = 'selected';
+      } else {
+        return;
+      }
+    } else {
+      navLoadedRef.current = currentNav ? 'current' : 'selected';
+    }
 
     const amount = parseFloat(form.getFieldValue('amount') || '0');
     const shares = parseFloat(form.getFieldValue('shares') || '0');
@@ -316,7 +322,9 @@ const Transactions: React.FC = () => {
   };
 
   useEffect(() => {
+    let cancelled = false;
     processPendingTransactions().then((result) => {
+      if (cancelled) return;
       if (result.processedCount > 0) {
         Toast.show({
           content: `已处理 ${result.processedCount} 笔在途交易`,
@@ -325,9 +333,12 @@ const Transactions: React.FC = () => {
         refresh();
         refreshHoldings();
       }
-    });
-    fetchAlerts().then(setAlerts);
-  }, []);
+    }).catch(() => {});
+    fetchAlerts().then((alerts) => {
+      if (!cancelled) setAlerts(alerts);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [refresh, refreshHoldings]);
 
   const handleResolveAlert = async (alertId: string) => {
     await resolveAlert(alertId, 'resolved');

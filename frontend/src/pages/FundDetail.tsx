@@ -52,20 +52,19 @@ const FundDetail: React.FC = () => {
           .eq('fund_code', fundCode)
           .limit(1)
           .maybeSingle();
-        const fav = favorite as any;
-        setIsFavorite(!!fav);
+        setIsFavorite(!!favorite);
 
-        if (fav) {
+        if (favorite) {
           setFundInfo({
-            code: fav.fund_code,
-            name: fav.fund_name,
-            category: fav.category || '未知',
+            code: (favorite as any).fund_code,
+            name: (favorite as any).fund_name,
+            category: (favorite as any).category || '未知',
           });
         }
       }
     };
     
-    loadFundInfo();
+    loadFundInfo().catch(() => {});
   }, [fundCode]);
 
   // 加载基金净值数据
@@ -78,7 +77,8 @@ const FundDetail: React.FC = () => {
   // 加载交易数据（用于批次追溯）
   useEffect(() => {
     if (!fundCode || detailTab !== 'lots') return;
-    const loadTransactions = async () => {
+    let cancelled = false;
+    (async () => {
       if (!isSupabaseConfigured()) return;
       setLoadingLots(true);
       try {
@@ -86,6 +86,7 @@ const FundDetail: React.FC = () => {
           .from('transactions')
           .select('*')
           .eq('fund_code', fundCode);
+        if (cancelled) return;
         if (!error && data) {
           const mapped: Transaction[] = data.map((t: any) => ({
             id: t.id,
@@ -104,18 +105,19 @@ const FundDetail: React.FC = () => {
             gridExecutionId: t.grid_execution_id,
             createdAt: t.created_at,
           }));
+          if (cancelled) return;
           setTransactions(mapped);
           const derived = groupTransactionsByLot(mapped, fundCode);
           const enriched = await enrichLotTimelinesWithNav(derived);
-          setTimelines(enriched);
+          if (!cancelled) setTimelines(enriched);
         }
       } catch {
-        setTimelines([]);
+        if (!cancelled) setTimelines([]);
       } finally {
-        setLoadingLots(false);
+        if (!cancelled) setLoadingLots(false);
       }
-    };
-    loadTransactions();
+    })();
+    return () => { cancelled = true; };
   }, [fundCode, detailTab]);
 
   const loadFundData = async () => {
@@ -141,6 +143,7 @@ const FundDetail: React.FC = () => {
   // 切换收藏状态
   const toggleFavorite = async () => {
     if (!fundCode) return;
+    if (!isSupabaseConfigured()) return;
     
     const name = fundInfo?.name || fundData?.name || fundCode;
     const category = fundInfo?.category || '未知';

@@ -35,8 +35,8 @@ export default function TransactionsScreen() {
     if (!selectedFund) return;
     setSubmitting(true);
     try {
-      const price = 0;
       const isPending = tradeDate >= formatLocalDate(new Date());
+      const price = isPending ? 0 : (parseFloat(amount || '0') / (parseFloat(shares || '1') || 1));
       await addTransactionWithHoldingUpdate({
         fundId: selectedFund.code, fundCode: selectedFund.code, fundName: selectedFund.name,
         type: tradeType, date: tradeDate, amount: parseFloat(amount || '0'), price,

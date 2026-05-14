@@ -5,7 +5,7 @@ import { useGridDetail } from '../hooks/useGrid';
 import { GridTypeLabels, GRID_TYPES } from '../types';
 
 export default function GridDetailScreen({ route }: any) {
-  const { fundCode } = route.params;
+  const { fundCode = '' } = route.params ?? {};
   const { strategy, levelsByType, currentNav, loading, error, baseShares, shouldLiquidate, executeGridLevel, sellGridLevel, liquidateGridFund } = useGridDetail(fundCode);
 
   if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;

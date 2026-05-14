@@ -10,6 +10,14 @@ import { formatLocalDate } from '../utils/csv';
 import { createAlert } from './alertService';
 import type { Holding, Transaction } from '../types';
 
+declare global {
+  interface Window {
+    __pendingTransactionsProcessing?: boolean;
+  }
+}
+
+const PENDING_ALERT_DAYS_THRESHOLD = 5;
+
 // ============================================
 // 批次（Lot）类型定义
 // ============================================
@@ -142,7 +150,7 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
     // 优先精确匹配
     if (sell.gridExecutionId) {
       const targetLots = lots
-        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && l.gridExecutionId === sell.gridExecutionId)
+        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending && l.gridExecutionId === sell.gridExecutionId)
         .sort((a, b) => a.cost - b.cost);
 
       for (const lot of targetLots) {
@@ -155,7 +163,7 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
         const revenue = sellFromLot * sell.price;
         const profit = revenue - cost;
         const profitRate = cost > 0 ? profit / cost : 0;
-        const holdingDays = Math.round((new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24));
+        const holdingDays = Math.max(0, Math.round((new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24)));
 
         realizedLots.push({
           id: lot.id,
@@ -443,7 +451,7 @@ export function updateLocalHoldingAfterTransaction(
   let newTotalCost = transaction.type === 'buy'
     ? holding.totalCost + transaction.amount
     : holding.shares > 0
-      ? holding.totalCost * (1 - transaction.shares / holding.shares)
+      ? holding.totalCost * (1 - Math.min(1, transaction.shares / holding.shares))
       : 0;
 
   if (newTotalCost < 0) {
@@ -586,7 +594,7 @@ export async function removeTransactionWithHoldingUpdate(
  */
 export async function removeHoldingWithTransactions(fundCode: string): Promise<void> {
   if (!isSupabaseConfigured()) return;
-  if (!fundCode) return;
+  if (!fundCode) throw new Error('fundCode 不能为空');
 
   // 删除该基金的所有交易记录
   const { error: txError } = await supabase.from('transactions').delete().eq('fund_code', fundCode);
@@ -610,10 +618,10 @@ export interface ProcessPendingResult {
  */
 export async function processPendingTransactions(): Promise<ProcessPendingResult> {
   // 防止多页面/多组件重复调用
-  if ((window as any).__pendingTransactionsProcessing) {
+  if (window.__pendingTransactionsProcessing) {
     return { processedCount: 0, pendingCount: 0, errors: [] };
   }
-  (window as any).__pendingTransactionsProcessing = true;
+  window.__pendingTransactionsProcessing = true;
 
   try {
     if (!isSupabaseConfigured()) {
@@ -647,7 +655,7 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
 
   for (const [code, group] of fundGroups) {
     try {
-      const sortedDates = [...new Set(group.confirmDates)].sort();
+      const sortedDates = [...new Set(group.confirmDates)].sort((a, b) => a.localeCompare(b));
       const earliest = sortedDates[0];
       const today = formatLocalDate(new Date());
       // 一次性获取从最早确认日到今天的历史净值
@@ -703,10 +711,22 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
       const confirmDateObj = new Date(confirmDate);
       const navDateObj = new Date(navInfo.navDate);
 
+      if (isNaN(confirmDateObj.getTime()) || isNaN(navDateObj.getTime())) {
+        await createAlert({
+          transactionId: transaction.id,
+          fundCode: transaction.fund_code,
+          confirmDate,
+          reason: 'api_error',
+          detail: `无效日期: confirmDate=${confirmDate}, navDate=${navInfo.navDate}`,
+        });
+        errors.push(`${transaction.fund_code}: 日期无效`);
+        continue;
+      }
+
       if (navDateObj.getTime() < confirmDateObj.getTime()) {
         if (confirmDateObj < today) {
           const daysSinceConfirm = Math.floor((today.getTime() - confirmDateObj.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysSinceConfirm > 5) {
+          if (daysSinceConfirm > PENDING_ALERT_DAYS_THRESHOLD) {
             await createAlert({
               transactionId: transaction.id,
               fundCode: transaction.fund_code,
@@ -733,10 +753,14 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
         amount = shares * tradePrice;
       }
 
+      if (!Number.isFinite(shares) || !Number.isFinite(amount)) {
+        throw new Error(`计算结果无效: shares=${shares}, amount=${amount}`);
+      }
+
       const { error: updateError } = await (supabase.from('transactions') as any).update({
         nav: tradePrice,
-        shares,
-        amount,
+        shares: Math.round(shares * 10000) / 10000,
+        amount: Math.round(amount * 100) / 100,
         status: 'completed',
       }).eq('id', transaction.id);
 
@@ -747,13 +771,15 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
       processedCount++;
     } catch (error) {
       const msg = `${transaction.fund_code}: ${error instanceof Error ? error.message : String(error)}`;
-      await createAlert({
-        transactionId: transaction.id,
-        fundCode: transaction.fund_code,
-        confirmDate,
-        reason: 'api_error',
-        detail: msg,
-      });
+      try {
+        await createAlert({
+          transactionId: transaction.id,
+          fundCode: transaction.fund_code,
+          confirmDate,
+          reason: 'api_error',
+          detail: msg,
+        });
+      } catch { /* 告警创建失败不影响主流程 */ }
       errors.push(msg);
     }
   }
@@ -765,6 +791,6 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
   };
 } finally {
   // 处理完成后重置标记，允许下次调用
-  (window as any).__pendingTransactionsProcessing = false;
+  window.__pendingTransactionsProcessing = false;
 }
 }

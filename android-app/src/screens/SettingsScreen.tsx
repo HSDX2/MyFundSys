@@ -7,7 +7,10 @@ import { signOut } from '../hooks/useSupabase';
 export default function SettingsScreen() {
   const handleExport = async () => {
     try {
-      await exportDatabase();
+      const json = await exportDatabase();
+      // TODO: use expo-file-system + expo-sharing to save file
+      // Currently logs to console — file save requires native modules
+      console.log('Export data length:', json.length, 'chars');
     } catch (e) { console.error(e); }
   };
 

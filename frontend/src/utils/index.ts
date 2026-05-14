@@ -27,7 +27,9 @@ export function formatNumber(value: number, decimals: number = 2): string {
 
 // 格式化日期
 export function formatDate(dateString: string): string {
+  if (!dateString) return '';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return '';
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
@@ -37,7 +39,7 @@ export function formatDate(dateString: string): string {
 
 // 生成唯一ID
 export function generateId(prefix: string = ''): string {
-  return `${prefix}${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `${prefix}${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
 // 计算盈亏颜色

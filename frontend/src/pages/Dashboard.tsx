@@ -21,8 +21,10 @@ const Dashboard: React.FC = () => {
   const { gridTriggeredCount, valuationSignal } = useRiskMetrics(pendingCount, valuation?.percentile);
 
   useEffect(() => {
+    let cancelled = false;
     loadValuation();
     processPendingTransactions().then((result) => {
+      if (cancelled) return;
       if (result.processedCount > 0) {
         Toast.show({
           content: `已处理 ${result.processedCount} 笔在途交易`,
@@ -31,9 +33,12 @@ const Dashboard: React.FC = () => {
         refresh();
         refreshTransactions();
       }
-    });
-    fetchUnresolvedAlertCount().then(setAlertCount);
-  }, []);
+    }).catch(() => {});
+    fetchUnresolvedAlertCount().then((count) => {
+      if (!cancelled) setAlertCount(count);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [refresh, refreshTransactions]);
 
   const pendingBuyAmount = transactions
     .filter(t => t.status === 'pending' && t.type === 'buy')

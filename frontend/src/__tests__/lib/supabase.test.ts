@@ -193,7 +193,7 @@ describe('subscribeTransactions', () => {
     const { subscribeTransactions } = await import('../../lib/supabase');
     const callback = vi.fn();
     subscribeTransactions(callback);
-    expect(channelMock).toHaveBeenCalledWith('transactions');
+    expect(channelMock).toHaveBeenCalledWith('transactions_default');
     expect(onMock).toHaveBeenCalledWith(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'transactions' },
@@ -226,7 +226,7 @@ describe('subscribeHoldings', () => {
     const { subscribeHoldings } = await import('../../lib/supabase');
     const callback = vi.fn();
     subscribeHoldings(callback);
-    expect(channelMock).toHaveBeenCalledWith('holdings');
+    expect(channelMock).toHaveBeenCalledWith('holdings_default');
     expect(onMock).toHaveBeenCalledWith(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'holdings' },
