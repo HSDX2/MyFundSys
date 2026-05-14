@@ -538,8 +538,10 @@ export async function addTransactionWithHoldingUpdate(
     fee: transaction.fee || 0,
     date: transaction.date,
     status: transaction.status || 'completed',
-    source: transaction.source || 'manual',
   };
+  if (transaction.source && transaction.source !== 'manual') {
+    txPayload.source = transaction.source;
+  }
   if (transaction.confirmDate) {
     txPayload.confirm_date = transaction.confirmDate;
   }

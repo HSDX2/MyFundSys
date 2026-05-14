@@ -185,7 +185,7 @@ export function useTransactions() {
   }, [loadTransactions]);
 
   const saveTransaction = useCallback(async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
-    const payload: TransactionsInsert = {
+    const payload: Record<string, unknown> = {
       fund_code: transaction.fundCode,
       fund_name: transaction.fundName,
       type: transaction.type,
@@ -195,8 +195,10 @@ export function useTransactions() {
       fee: transaction.fee || 0,
       date: transaction.date,
       status: transaction.status || 'completed',
-      source: transaction.source || 'manual',
     };
+    if (transaction.source && transaction.source !== 'manual') {
+      payload.source = transaction.source;
+    }
     const { data, error } = await supabase.from('transactions').insert(payload as any).select();
     if (error) {
       throw new Error(`保存交易失败: ${error.message}`);
