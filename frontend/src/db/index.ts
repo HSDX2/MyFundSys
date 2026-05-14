@@ -20,42 +20,54 @@ export interface FavoriteFund {
   created_at?: string;
 }
 
-// 移除未使用的类型定义（这些接口未在代码中使用）
-// export interface FundCacheItem { ... }  // 未使用
-// export interface ScheduledTask { ... } // 未使用
-// export interface FeishuConfig { ... }  // 未使用
-
 // ============================================
 // Supabase 数据操作（替代原 IndexedDB 操作）
 // ============================================
+
+async function getAllIds(table: string): Promise<string[]> {
+  const { data, error } = await supabase.from(table).select('id');
+  if (error) throw new Error(`查询 ${table} ID 失败: ${error.message}`);
+  return (data || []).map((r: any) => r.id);
+}
+
+async function deleteByIds(table: string, ids: string[]): Promise<void> {
+  for (let i = 0; i < ids.length; i += 100) {
+    const batch = ids.slice(i, i + 100);
+    const { error } = await supabase.from(table).delete().in('id', batch);
+    if (error) throw new Error(`删除 ${table} 失败: ${error.message}`);
+  }
+}
 
 export async function resetDatabase(): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
   const errors: string[] = [];
 
-  // 断开 FK 循环引用（transactions ↔ grid_executions）
-  // PostgREST 中 IS NOT NULL 的运算符是 isnot（而非 not.is），使用 .filter() 直接指定
-  async function updateAll(table: string, set: Record<string, unknown>) {
-    try {
-      const { error } = await (supabase.from(table) as any).update(set).filter('id', 'isnot', null);
-      if (error) errors.push(`解除 ${table} FK 失败: ${error.message}`);
-    } catch (e) {
-      errors.push(`解除 ${table} FK 异常: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-  await updateAll('transactions', { grid_execution_id: null });
-  await updateAll('grid_executions', { transaction_id: null });
+  try {
+    // 1. 断开 FK 循环引用：先获取所有 transactions 和 grid_executions 的 ID
+    const txIds = await getAllIds('transactions');
+    const geIds = await getAllIds('grid_executions');
 
-  // 按依赖顺序逐表删除，子表先于父表
-  const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history'];
-  for (const table of tables) {
-    try {
-      const { error } = await supabase.from(table).delete().filter('id', 'isnot', null);
-      if (error) errors.push(`${table}: ${error.message}`);
-    } catch (e) {
-      errors.push(`${table}: ${e instanceof Error ? e.message : String(e)}`);
+    // 逐条清除 FK 引用（按具体 ID 操作，避免 PostgREST 运算符兼容性问题）
+    for (const id of txIds) {
+      const { error } = await (supabase.from('transactions') as any).update({ grid_execution_id: null }).eq('id', id);
+      if (error) errors.push(`解除 transactions(${id}) FK 失败: ${error.message}`);
     }
+    for (const id of geIds) {
+      const { error } = await (supabase.from('grid_executions') as any).update({ transaction_id: null }).eq('id', id);
+      if (error) errors.push(`解除 grid_executions(${id}) FK 失败: ${error.message}`);
+    }
+
+    // 2. 按依赖顺序逐表删除
+    const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history'];
+    for (const table of tables) {
+      const ids = await getAllIds(table);
+      if (ids.length > 0) {
+        await deleteByIds(table, ids);
+      }
+    }
+  } catch (e) {
+    errors.push(`${e instanceof Error ? e.message : String(e)}`);
   }
 
   if (errors.length > 0) {
@@ -142,22 +154,37 @@ export async function importDatabase(jsonString: string): Promise<void> {
   // 先 INSERT 再 DELETE，防止数据丢失
   if (holdings.length) {
     const { error: insErr } = await supabase.from('holdings').insert(holdings as any);
-    if (!insErr) await supabase.from('holdings').delete().filter('id', 'isnot', null);
+    if (!insErr) {
+      const ids = (holdings as any[]).map((h: any) => h.id).filter(Boolean);
+      if (ids.length) await supabase.from('holdings').delete().in('id', ids);
+    }
   }
   if (transactions.length) {
     const { error: insErr } = await supabase.from('transactions').insert(transactions as any);
-    if (!insErr) await supabase.from('transactions').delete().filter('id', 'isnot', null);
+    if (!insErr) {
+      const ids = (transactions as any[]).map((t: any) => t.id).filter(Boolean);
+      if (ids.length) await supabase.from('transactions').delete().in('id', ids);
+    }
   }
   if (gridStrategies.length) {
     const { error: insErr } = await supabase.from('grid_strategies').insert(gridStrategies as any);
-    if (!insErr) await supabase.from('grid_strategies').delete().filter('id', 'isnot', null);
+    if (!insErr) {
+      const ids = (gridStrategies as any[]).map((s: any) => s.id).filter(Boolean);
+      if (ids.length) await supabase.from('grid_strategies').delete().in('id', ids);
+    }
   }
   if (gridExecutions.length) {
     const { error: insErr } = await supabase.from('grid_executions').insert(gridExecutions as any);
-    if (!insErr) await supabase.from('grid_executions').delete().filter('id', 'isnot', null);
+    if (!insErr) {
+      const ids = (gridExecutions as any[]).map((e: any) => e.id).filter(Boolean);
+      if (ids.length) await supabase.from('grid_executions').delete().in('id', ids);
+    }
   }
   if (favoriteFunds.length) {
     const { error: insErr } = await supabase.from('favorite_funds').insert(favoriteFunds as any);
-    if (!insErr) await supabase.from('favorite_funds').delete().filter('id', 'isnot', null);
+    if (!insErr) {
+      const ids = (favoriteFunds as any[]).map((f: any) => f.id).filter(Boolean);
+      if (ids.length) await supabase.from('favorite_funds').delete().in('id', ids);
+    }
   }
 }
