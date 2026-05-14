@@ -32,12 +32,21 @@ export interface FavoriteFund {
 export async function resetDatabase(): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
-  const tables = ['holdings', 'transactions', 'favorite_funds', 'fund_cache', 'grid_strategies', 'grid_executions'];
+  // 先断开 FK 关联，避免外键约束冲突
+  await (supabase.from('transactions') as any).update({ grid_execution_id: null }).neq('grid_execution_id', null);
+  await (supabase.from('grid_executions') as any).update({ transaction_id: null }).neq('transaction_id', null);
+
+  // 按依赖顺序删除（子表先删，父表后删）
+  const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'pending_alerts'];
+  const errors: string[] = [];
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().neq('id', '0');
     if (error) {
-      continue;
+      errors.push(`${table}: ${error.message}`);
     }
+  }
+  if (errors.length > 0) {
+    console.error('重置数据失败:', errors);
   }
 }
 
