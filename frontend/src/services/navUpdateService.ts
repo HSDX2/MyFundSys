@@ -539,10 +539,12 @@ export async function addTransactionWithHoldingUpdate(
     date: transaction.date,
     status: transaction.status || 'completed',
     source: transaction.source || 'manual',
-    grid_execution_id: transaction.gridExecutionId || null,
   };
   if (transaction.confirmDate) {
     txPayload.confirm_date = transaction.confirmDate;
+  }
+  if (transaction.gridExecutionId) {
+    txPayload.grid_execution_id = transaction.gridExecutionId;
   }
 
   const { data, error } = await supabase

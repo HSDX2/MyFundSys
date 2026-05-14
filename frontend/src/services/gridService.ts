@@ -245,12 +245,17 @@ export async function executeGrid(
     const executionId = (data as any).id;
 
     // 3. 回填 grid_execution_id 到 transaction，确保 deriveLots 能精确匹配
-    const { error: backfillError } = await (supabase
-      .from('transactions') as any)
-      .update({ grid_execution_id: executionId })
-      .eq('id', transactionId);
-    if (backfillError) {
-      throw new Error(`回填 grid_execution_id 失败: ${backfillError.message}`);
+    // 该列可能未在 Supabase schema cache 中，回填失败不阻塞执行（回退到成本匹配）
+    try {
+      const { error: backfillError } = await (supabase
+        .from('transactions') as any)
+        .update({ grid_execution_id: executionId })
+        .eq('id', transactionId);
+      if (backfillError) {
+        console.warn(`回填 grid_execution_id 失败: ${backfillError.message}`);
+      }
+    } catch (e) {
+      console.warn(`回填 grid_execution_id 异常: ${e}`);
     }
 
     return { executionId, transactionId };
@@ -341,26 +346,36 @@ export async function cancelGridExecution(executionId: string): Promise<void> {
 
   // 检查是否已有卖出消耗了该买入份额：卖出 transaction 的 grid_execution_id 指向该 execution
   if (exec.action === 'buy' && exec.transaction_id) {
-    const { data: sellTxs } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('grid_execution_id', executionId)
-      .eq('type', 'sell')
-      .limit(1);
-    if (sellTxs && sellTxs.length > 0) {
-      throw new Error('该买入已被卖出引用，无法取消。请先删除对应的卖出记录。');
+    try {
+      const { data: sellTxs } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('grid_execution_id', executionId)
+        .eq('type', 'sell')
+        .limit(1);
+      if (sellTxs && sellTxs.length > 0) {
+        throw new Error('该买入已被卖出引用，无法取消。请先删除对应的卖出记录。');
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('已被卖出引用')) throw e;
+      console.warn('检查卖出引用失败，跳过:', e);
     }
   }
 
   // 如果是卖出 execution 被取消，恢复对应买入 execution 的 remaining_shares
   if (exec.action === 'sell' && exec.transaction_id) {
-    const { data: sellTx } = await (supabase
-      .from('transactions') as any)
-      .select('grid_execution_id')
-      .eq('id', exec.transaction_id)
-      .maybeSingle();
-    if (sellTx?.grid_execution_id) {
-      const buyExecId = sellTx.grid_execution_id;
+    let buyExecId: string | undefined;
+    try {
+      const { data: sellTx } = await (supabase
+        .from('transactions') as any)
+        .select('grid_execution_id')
+        .eq('id', exec.transaction_id)
+        .maybeSingle();
+      buyExecId = sellTx?.grid_execution_id;
+    } catch (e) {
+      console.warn('查询卖出的 grid_execution_id 失败，跳过份额恢复:', e);
+    }
+    if (buyExecId) {
       const { data: buyExec } = await (supabase
         .from('grid_executions') as any)
         .select('remaining_shares')
