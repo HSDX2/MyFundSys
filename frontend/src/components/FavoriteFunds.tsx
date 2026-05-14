@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, SwipeAction, Toast, SpinLoading } from 'antd-mobile';
 import { StarFill } from 'antd-mobile-icons';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { fetchFundNav } from '../services/fundApi';
 import { batchGetFundHistory, MiniHistoryPoint } from '../services/fundApi';
+import { reorderFavorites } from '../services/favoriteService';
 import SparklineChart from './SparklineChart';
 import type { FundApiData } from '../types';
 import './FavoriteFunds.css';
@@ -41,6 +45,7 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
       const { data: list, error } = await supabase
         .from('favorite_funds')
         .select('*')
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -110,6 +115,29 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
     Toast.show({ content: '已刷新', position: 'bottom' });
   }, [loadFavorites]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = favorites.findIndex(f => f.id === active.id);
+    const newIndex = favorites.findIndex(f => f.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(favorites, oldIndex, newIndex);
+    setFavorites(reordered);
+    try {
+      await reorderFavorites(reordered.map(f => f.id));
+    } catch {
+      Toast.show({ content: '排序保存失败', position: 'bottom' });
+      loadFavorites();
+    }
+  };
+
   if (loading) {
     return (
       <Card title="已收藏基金" className="favorite-funds-card">
@@ -150,62 +178,82 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
           <span style={{ fontSize: 12, color: '#999' }}>加载趋势图...</span>
         </div>
       )}
-      <div className="favorite-list">
-        {favorites.map((fund) => (
-          <SwipeAction
-            key={fund.id}
-            rightActions={[
-              {
-                key: 'delete',
-                text: '取消收藏',
-                color: '#ff4d4f',
-                onClick: () => handleRemove(fund.id),
-              },
-            ]}
-          >
-            <div
-              className="favorite-item"
-              onClick={() => handleClick(fund)}
-            >
-              <div className="favorite-info">
-                <div className="favorite-name">{fund.fund_name}</div>
-                <div className="favorite-code">{fund.fund_code}</div>
-              </div>
-              
-              <div className="favorite-chart">
-                <SparklineChart 
-                  data={fund.historyData || []} 
-                  width={80} 
-                  height={36}
-                />
-                <div className="chart-label">近三月</div>
-              </div>
-              
-              <div className="favorite-nav">
-                {fund.navData ? (
-                  <>
-                    <div className="nav-value">{fund.navData.nav.toFixed(4)}</div>
-                    <div 
-                      className="nav-change"
-                      style={{ 
-                        color: fund.navData.dailyChangeRate >= 0 ? '#ff4d4f' : '#52c41a' 
-                      }}
-                    >
-                      {fund.navData.dailyChangeRate >= 0 ? '+' : ''}
-                      {fund.navData.dailyChangeRate.toFixed(2)}%
-                    </div>
-                    <div className="nav-date">{fund.navData.navDate}</div>
-                  </>
-                ) : (
-                  <div className="nav-loading">--</div>
-                )}
-              </div>
-            </div>
-          </SwipeAction>
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={favorites.map(f => f.id)} strategy={verticalListSortingStrategy}>
+          <div className="favorite-list">
+            {favorites.map((fund) => (
+              <SortableFavoriteItem
+                key={fund.id}
+                fund={fund}
+                onRemove={handleRemove}
+                onClick={handleClick}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </Card>
   );
 };
+
+function SortableFavoriteItem({ fund, onRemove, onClick }: {
+  fund: FundWithData;
+  onRemove: (id: string) => void;
+  onClick: (fund: FundWithData) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: fund.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+    position: 'relative' as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <SwipeAction
+        rightActions={[
+          {
+            key: 'delete',
+            text: '取消收藏',
+            color: '#ff4d4f',
+            onClick: () => onRemove(fund.id),
+          },
+        ]}
+      >
+        <div className="favorite-item" {...attributes} {...listeners} onClick={() => onClick(fund)}>
+          <div className="favorite-drag-handle" style={{
+            display: 'flex', alignItems: 'center', paddingRight: 6, color: '#bbb', fontSize: 16, cursor: 'grab',
+          }}>
+            ⋮⋮
+          </div>
+          <div className="favorite-info">
+            <div className="favorite-name">{fund.fund_name}</div>
+            <div className="favorite-code">{fund.fund_code}</div>
+          </div>
+          <div className="favorite-chart">
+            <SparklineChart data={fund.historyData || []} width={80} height={36} />
+            <div className="chart-label">近三月</div>
+          </div>
+          <div className="favorite-nav">
+            {fund.navData ? (
+              <>
+                <div className="nav-value">{fund.navData.nav.toFixed(4)}</div>
+                <div className="nav-change" style={{ color: fund.navData.dailyChangeRate >= 0 ? '#ff4d4f' : '#52c41a' }}>
+                  {fund.navData.dailyChangeRate >= 0 ? '+' : ''}
+                  {fund.navData.dailyChangeRate.toFixed(2)}%
+                </div>
+                <div className="nav-date">{fund.navData.navDate}</div>
+              </>
+            ) : (
+              <div className="nav-loading">--</div>
+            )}
+          </div>
+        </div>
+      </SwipeAction>
+    </div>
+  );
+}
 
 export default FavoriteFunds;
