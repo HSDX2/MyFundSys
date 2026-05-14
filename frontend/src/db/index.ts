@@ -29,24 +29,34 @@ export interface FavoriteFund {
 // Supabase 数据操作（替代原 IndexedDB 操作）
 // ============================================
 
+const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+
 export async function resetDatabase(): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
   const errors: string[] = [];
 
-  // 断开 FK 循环引用（transactions ↔ grid_executions），使用 .not().is(null) 正确匹配所有非空行
-  const { error: err1 } = await (supabase.from('transactions') as any).update({ grid_execution_id: null }).not('grid_execution_id', 'is', null);
-  if (err1) errors.push(`解除 transactions.grid_execution_id 失败: ${err1.message}`);
+  // 断开 FK 循环引用（transactions ↔ grid_executions），避免级联删除报错
+  // 使用 NIL_UUID 作为 neq 值，保证所有列类型（UUID/TEXT/INT）均不匹配任何真实行
+  async function updateAll(table: string, set: Record<string, unknown>) {
+    try {
+      const { error } = await (supabase.from(table) as any).update(set).neq('id', NIL_UUID);
+      if (error) errors.push(`解除 ${table} FK 失败: ${error.message}`);
+    } catch (e) {
+      errors.push(`解除 ${table} FK 异常: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  await updateAll('transactions', { grid_execution_id: null });
+  await updateAll('grid_executions', { transaction_id: null });
 
-  const { error: err2 } = await (supabase.from('grid_executions') as any).update({ transaction_id: null }).not('transaction_id', 'is', null);
-  if (err2) errors.push(`解除 grid_executions.transaction_id 失败: ${err2.message}`);
-
-  // 按依赖顺序删除（子表先删，父表后删）
+  // 按依赖顺序逐表删除，子表先于父表
   const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history', 'pending_alerts'];
   for (const table of tables) {
-    const { error } = await supabase.from(table).delete().neq('id', '0');
-    if (error) {
-      errors.push(`${table}: ${error.message}`);
+    try {
+      const { error } = await supabase.from(table).delete().neq('id', NIL_UUID);
+      if (error) errors.push(`${table}: ${error.message}`);
+    } catch (e) {
+      errors.push(`${table}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -134,22 +144,22 @@ export async function importDatabase(jsonString: string): Promise<void> {
   // 先 INSERT 再 DELETE，防止数据丢失
   if (holdings.length) {
     const { error: insErr } = await supabase.from('holdings').insert(holdings as any);
-    if (!insErr) await supabase.from('holdings').delete().neq('id', '0');
+    if (!insErr) await supabase.from('holdings').delete().neq('id', NIL_UUID);
   }
   if (transactions.length) {
     const { error: insErr } = await supabase.from('transactions').insert(transactions as any);
-    if (!insErr) await supabase.from('transactions').delete().neq('id', '0');
+    if (!insErr) await supabase.from('transactions').delete().neq('id', NIL_UUID);
   }
   if (gridStrategies.length) {
     const { error: insErr } = await supabase.from('grid_strategies').insert(gridStrategies as any);
-    if (!insErr) await supabase.from('grid_strategies').delete().neq('id', '0');
+    if (!insErr) await supabase.from('grid_strategies').delete().neq('id', NIL_UUID);
   }
   if (gridExecutions.length) {
     const { error: insErr } = await supabase.from('grid_executions').insert(gridExecutions as any);
-    if (!insErr) await supabase.from('grid_executions').delete().neq('id', '0');
+    if (!insErr) await supabase.from('grid_executions').delete().neq('id', NIL_UUID);
   }
   if (favoriteFunds.length) {
     const { error: insErr } = await supabase.from('favorite_funds').insert(favoriteFunds as any);
-    if (!insErr) await supabase.from('favorite_funds').delete().neq('id', '0');
+    if (!insErr) await supabase.from('favorite_funds').delete().neq('id', NIL_UUID);
   }
 }
