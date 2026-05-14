@@ -29,18 +29,16 @@ export interface FavoriteFund {
 // Supabase 数据操作（替代原 IndexedDB 操作）
 // ============================================
 
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
-
 export async function resetDatabase(): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
   const errors: string[] = [];
 
-  // 断开 FK 循环引用（transactions ↔ grid_executions），避免级联删除报错
-  // 使用 NIL_UUID 作为 neq 值，保证所有列类型（UUID/TEXT/INT）均不匹配任何真实行
+  // 断开 FK 循环引用（transactions ↔ grid_executions）
+  // 使用 id=not.is.null（IS NOT NULL）作为通用过滤器，所有列类型均兼容
   async function updateAll(table: string, set: Record<string, unknown>) {
     try {
-      const { error } = await (supabase.from(table) as any).update(set).neq('id', NIL_UUID);
+      const { error } = await (supabase.from(table) as any).update(set).not('id', 'is', null);
       if (error) errors.push(`解除 ${table} FK 失败: ${error.message}`);
     } catch (e) {
       errors.push(`解除 ${table} FK 异常: ${e instanceof Error ? e.message : String(e)}`);
@@ -50,10 +48,10 @@ export async function resetDatabase(): Promise<void> {
   await updateAll('grid_executions', { transaction_id: null });
 
   // 按依赖顺序逐表删除，子表先于父表
-  const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history', 'pending_alerts'];
+  const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history'];
   for (const table of tables) {
     try {
-      const { error } = await supabase.from(table).delete().neq('id', NIL_UUID);
+      const { error } = await supabase.from(table).delete().not('id', 'is', null);
       if (error) errors.push(`${table}: ${error.message}`);
     } catch (e) {
       errors.push(`${table}: ${e instanceof Error ? e.message : String(e)}`);
@@ -144,22 +142,22 @@ export async function importDatabase(jsonString: string): Promise<void> {
   // 先 INSERT 再 DELETE，防止数据丢失
   if (holdings.length) {
     const { error: insErr } = await supabase.from('holdings').insert(holdings as any);
-    if (!insErr) await supabase.from('holdings').delete().neq('id', NIL_UUID);
+    if (!insErr) await supabase.from('holdings').delete().not('id', 'is', null);
   }
   if (transactions.length) {
     const { error: insErr } = await supabase.from('transactions').insert(transactions as any);
-    if (!insErr) await supabase.from('transactions').delete().neq('id', NIL_UUID);
+    if (!insErr) await supabase.from('transactions').delete().not('id', 'is', null);
   }
   if (gridStrategies.length) {
     const { error: insErr } = await supabase.from('grid_strategies').insert(gridStrategies as any);
-    if (!insErr) await supabase.from('grid_strategies').delete().neq('id', NIL_UUID);
+    if (!insErr) await supabase.from('grid_strategies').delete().not('id', 'is', null);
   }
   if (gridExecutions.length) {
     const { error: insErr } = await supabase.from('grid_executions').insert(gridExecutions as any);
-    if (!insErr) await supabase.from('grid_executions').delete().neq('id', NIL_UUID);
+    if (!insErr) await supabase.from('grid_executions').delete().not('id', 'is', null);
   }
   if (favoriteFunds.length) {
     const { error: insErr } = await supabase.from('favorite_funds').insert(favoriteFunds as any);
-    if (!insErr) await supabase.from('favorite_funds').delete().neq('id', NIL_UUID);
+    if (!insErr) await supabase.from('favorite_funds').delete().not('id', 'is', null);
   }
 }
