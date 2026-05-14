@@ -31,12 +31,16 @@ export async function createAlert(alert: {
 
 export async function fetchAlerts(): Promise<PendingAlert[]> {
   if (!isSupabaseConfigured()) return [];
-  const { data, error } = await (supabase
-    .from('pending_alerts') as any)
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) return [];
-  return ((data as any[]) || []).map(mapDbAlert);
+  try {
+    const { data, error } = await (supabase
+      .from('pending_alerts') as any)
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return ((data as any[]) || []).map(mapDbAlert);
+  } catch {
+    return [];
+  }
 }
 
 export async function resolveAlert(alertId: string, status: 'resolved' | 'ignored'): Promise<void> {
@@ -49,11 +53,16 @@ export async function resolveAlert(alertId: string, status: 'resolved' | 'ignore
 
 export async function fetchUnresolvedAlertCount(): Promise<number> {
   if (!isSupabaseConfigured()) return 0;
-  const { count } = await (supabase
-    .from('pending_alerts') as any)
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'unresolved');
-  return count || 0;
+  try {
+    const { count, error } = await (supabase
+      .from('pending_alerts') as any)
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'unresolved');
+    if (error) return 0;
+    return count || 0;
+  } catch {
+    return 0;
+  }
 }
 
 function mapDbAlert(row: any): PendingAlert {
