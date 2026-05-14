@@ -37,7 +37,7 @@ export async function resetDatabase(): Promise<void> {
   await (supabase.from('grid_executions') as any).update({ transaction_id: null }).neq('transaction_id', null);
 
   // 按依赖顺序删除（子表先删，父表后删）
-  const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'pending_alerts'];
+  const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history', 'pending_alerts'];
   const errors: string[] = [];
   for (const table of tables) {
     const { error } = await supabase.from(table).delete().neq('id', '0');
