@@ -97,9 +97,9 @@ const FundDetail: React.FC = () => {
             date: t.date,
             confirmDate: t.confirm_date || t.date,
             amount: t.amount,
-            price: t.nav,
+            price: Number(t.nav) || 0,
             shares: t.shares,
-            fee: t.fee,
+            fee: t.fee || 0,
             status: t.status,
             source: t.source || 'manual',
             gridExecutionId: t.grid_execution_id,
@@ -112,7 +112,10 @@ const FundDetail: React.FC = () => {
           if (!cancelled) setTimelines(enriched);
         }
       } catch {
-        if (!cancelled) setTimelines([]);
+        if (!cancelled) {
+          setTimelines([]);
+          Toast.show({ content: '加载交易批次失败', position: 'bottom' });
+        }
       } finally {
         if (!cancelled) setLoadingLots(false);
       }

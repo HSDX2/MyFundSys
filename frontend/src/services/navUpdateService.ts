@@ -571,12 +571,15 @@ export async function addTransactionWithHoldingUpdate(
       };
     }
 
-    if (withOptional && error) {
+    if (!error && !data) {
+      throw new Error('插入交易记录成功但未返回数据');
+    }
+
+    if (withOptional) {
       const msg = error.message || '';
       if (msg.includes('Could not find') && msg.includes('schema cache')) {
         continue;
       }
-      throw new Error(`插入交易记录失败: ${msg}`);
     }
 
     throw new Error(`插入交易记录失败: ${error?.message || '未知错误'}`);
