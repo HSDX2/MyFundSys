@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-05-14
+
+### Added
+- **已收藏基金拖拽排序** — `@dnd-kit/core` + `sortable` 实现，长按/拖动调整顺序，自动持久化到 `sort_order`
+- **pending_alerts 表迁移** — 新增 `pending_alerts` 表，记录在途交易自动处理失败告警
+- **交易批次 Tab 大修** — 在途买入显示"待确认"视图、网格/手动标签、盈亏计算计入手续费、NaN 防护、加载失败 Toast
+- **保存交易双次重试** — schema cache 未刷新时自动降级到基础列，兼容未迁移的 Supabase 项目
+
+### Fixed
+- `addTransactionWithHoldingUpdate` / `saveTransaction` schema cache 兼容（`source`/`confirm_date`/`grid_execution_id` 列未迁移时自动降级）
+- `resetDatabase` 改为先 SELECT ID 再逐条 DELETE，彻底解决 PostgREST 运算符兼容问题
+- `fetchFundNav` 添加 10s 超时，防止边缘函数挂起导致收藏列表无法加载
+- `fetchAlerts`/`fetchUnresolvedAlertCount` 添加 try-catch 处理 `pending_alerts` 表不存在
+- 迁移 `004` RLS policy 重复创建修复、`funds` 表不存在条件判断
+
+### Changed
+- 全项目测试 **511**（Web 511 + Android 24）
+- `supabase/config.toml` major_version 15 → 17
+
 ## [2.5.0] - 2026-05-14
 
 ### Fixed
