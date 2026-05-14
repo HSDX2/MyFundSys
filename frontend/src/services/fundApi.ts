@@ -6,6 +6,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 // ============================================
 
 const CACHE_DURATION = 5 * 60 * 1000;
+const FETCH_TIMEOUT = 10000;
 const navCache = new Map<string, { data: FundApiData; timestamp: number }>();
 const pendingNavRequests = new Map<string, Promise<FundApiData | null>>();
 
@@ -22,7 +23,10 @@ export async function fetchFundNav(fundCode: string): Promise<FundApiData | null
 
   const promise = fetchFromEastMoney(fundCode).catch(() => null);
   pendingNavRequests.set(fundCode, promise);
-  const data = await promise;
+  const data = await Promise.race([
+    promise,
+    new Promise<null>(resolve => setTimeout(() => resolve(null), FETCH_TIMEOUT)),
+  ]);
   pendingNavRequests.delete(fundCode);
 
   if (data) {

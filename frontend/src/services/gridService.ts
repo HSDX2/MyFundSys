@@ -647,7 +647,7 @@ export async function batchImportGridStrategies(
 
         success++;
 
-        const ok = await addFavoriteFund(item.fund_code, item.fund_name);
+        const ok = await addFavoriteFund(item.fund_code, item.fund_name, '基金');
         if (ok) {
           autoFavorited++;
         } else {
