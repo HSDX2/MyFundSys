@@ -35,10 +35,10 @@ export async function resetDatabase(): Promise<void> {
   const errors: string[] = [];
 
   // 断开 FK 循环引用（transactions ↔ grid_executions）
-  // 使用 id=not.is.null（IS NOT NULL）作为通用过滤器，所有列类型均兼容
+  // PostgREST 中 IS NOT NULL 的运算符是 isnot（而非 not.is），使用 .filter() 直接指定
   async function updateAll(table: string, set: Record<string, unknown>) {
     try {
-      const { error } = await (supabase.from(table) as any).update(set).not('id', 'is', null);
+      const { error } = await (supabase.from(table) as any).update(set).filter('id', 'isnot', null);
       if (error) errors.push(`解除 ${table} FK 失败: ${error.message}`);
     } catch (e) {
       errors.push(`解除 ${table} FK 异常: ${e instanceof Error ? e.message : String(e)}`);
@@ -51,7 +51,7 @@ export async function resetDatabase(): Promise<void> {
   const tables = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds', 'fund_cache', 'fund_search_history'];
   for (const table of tables) {
     try {
-      const { error } = await supabase.from(table).delete().not('id', 'is', null);
+      const { error } = await supabase.from(table).delete().filter('id', 'isnot', null);
       if (error) errors.push(`${table}: ${error.message}`);
     } catch (e) {
       errors.push(`${table}: ${e instanceof Error ? e.message : String(e)}`);
@@ -142,22 +142,22 @@ export async function importDatabase(jsonString: string): Promise<void> {
   // 先 INSERT 再 DELETE，防止数据丢失
   if (holdings.length) {
     const { error: insErr } = await supabase.from('holdings').insert(holdings as any);
-    if (!insErr) await supabase.from('holdings').delete().not('id', 'is', null);
+    if (!insErr) await supabase.from('holdings').delete().filter('id', 'isnot', null);
   }
   if (transactions.length) {
     const { error: insErr } = await supabase.from('transactions').insert(transactions as any);
-    if (!insErr) await supabase.from('transactions').delete().not('id', 'is', null);
+    if (!insErr) await supabase.from('transactions').delete().filter('id', 'isnot', null);
   }
   if (gridStrategies.length) {
     const { error: insErr } = await supabase.from('grid_strategies').insert(gridStrategies as any);
-    if (!insErr) await supabase.from('grid_strategies').delete().not('id', 'is', null);
+    if (!insErr) await supabase.from('grid_strategies').delete().filter('id', 'isnot', null);
   }
   if (gridExecutions.length) {
     const { error: insErr } = await supabase.from('grid_executions').insert(gridExecutions as any);
-    if (!insErr) await supabase.from('grid_executions').delete().not('id', 'is', null);
+    if (!insErr) await supabase.from('grid_executions').delete().filter('id', 'isnot', null);
   }
   if (favoriteFunds.length) {
     const { error: insErr } = await supabase.from('favorite_funds').insert(favoriteFunds as any);
-    if (!insErr) await supabase.from('favorite_funds').delete().not('id', 'is', null);
+    if (!insErr) await supabase.from('favorite_funds').delete().filter('id', 'isnot', null);
   }
 }
