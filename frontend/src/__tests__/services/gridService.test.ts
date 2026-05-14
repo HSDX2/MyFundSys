@@ -648,7 +648,7 @@ describe('gridService', () => {
       expect(result.success).toBe(1);
       expect(result.autoFavorited).toBe(1);
       expect(result.errors).toHaveLength(0);
-      expect(mockAddFavoriteFund).toHaveBeenCalledWith('000001', '测试基金');
+      expect(mockAddFavoriteFund).toHaveBeenCalledWith('000001', '测试基金', '基金');
     });
 
     it('成功更新现有策略不添加到收藏', async () => {
