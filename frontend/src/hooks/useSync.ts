@@ -185,25 +185,34 @@ export function useTransactions() {
   }, [loadTransactions]);
 
   const saveTransaction = useCallback(async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
-    const payload: Record<string, unknown> = {
-      fund_code: transaction.fundCode,
-      fund_name: transaction.fundName,
-      type: transaction.type,
-      shares: transaction.shares,
-      nav: transaction.price,
-      amount: transaction.amount,
-      fee: transaction.fee || 0,
-      date: transaction.date,
-      status: transaction.status || 'completed',
-    };
-    if (transaction.source && transaction.source !== 'manual') {
-      payload.source = transaction.source;
+    function buildPayload(includeSource: boolean): Record<string, unknown> {
+      const p: Record<string, unknown> = {
+        fund_code: transaction.fundCode,
+        fund_name: transaction.fundName,
+        type: transaction.type,
+        shares: transaction.shares,
+        nav: transaction.price,
+        amount: transaction.amount,
+        fee: transaction.fee || 0,
+        date: transaction.date,
+        status: transaction.status || 'completed',
+      };
+      if (includeSource && transaction.source && transaction.source !== 'manual') {
+        p.source = transaction.source;
+      }
+      return p;
     }
-    const { data, error } = await supabase.from('transactions').insert(payload as any).select();
-    if (error) {
-      throw new Error(`保存交易失败: ${error.message}`);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await supabase.from('transactions').insert(buildPayload(attempt === 0) as any).select();
+      if (!error && data) {
+        return (data as any)?.[0]?.id;
+      }
+      if (error && attempt === 0 && error.message?.includes('Could not find') && error.message?.includes('schema cache')) {
+        continue;
+      }
+      throw new Error(`保存交易失败: ${error?.message || '未知错误'}`);
     }
-    return (data as any)?.[0]?.id;
+    throw new Error('保存交易失败');
   }, []);
 
   const removeTransaction = useCallback(async (id: string) => {
