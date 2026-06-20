@@ -7,6 +7,7 @@ import {
   exportHoldingsToCSV,
   exportTransactionsToCSV,
   importTransactionsFromCSV,
+  normalizeDateString,
 } from '../../utils/csv';
 import type { Holding, Transaction } from '../../types';
 
@@ -82,6 +83,16 @@ describe('exportToCSV', () => {
     const data = [{ name: '张三', age: null as unknown as number }];
     exportToCSV(data, 'test.csv');
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
+  });
+
+  it('值包含换行符时使用引号包裹（修复 C）', async () => {
+    setupDOMMocks();
+    const data = [{ name: '张三', remark: '第一行\n第二行' }];
+    exportToCSV(data, 'test.csv');
+    const blob = (vi.mocked(URL.createObjectURL).mock.calls[0] as [Blob])[0];
+    const text = await blob.text();
+    // 含换行的字段必须被引号包裹，整条记录不被换行拆散
+    expect(text).toContain('"第一行\n第二行"');
   });
 });
 
@@ -409,5 +420,61 @@ describe('importTransactionsFromCSV', () => {
       fundName: '测试基金',
       type: 'buy',
     });
+  });
+
+  // 修复 D：日期规范化与数值边界
+  it('斜杠日期格式被规范化为 YYYY-MM-DD', () => {
+    const csv = '日期,基金代码,基金名称,类型,金额,价格,份额\n2024/3/5,000001,测试基金,买入,1000,1.5,666.67';
+    const result = importTransactionsFromCSV(csv);
+    expect(result[0].date).toBe('2024-03-05');
+    expect(result[0].status).toBe('completed'); // 2024-03-05 < 2024-03-15
+  });
+
+  it('不补零的横杠日期被规范化', () => {
+    const csv = '日期,基金代码,基金名称,类型,金额,价格,份额\n2024-3-5,000001,测试基金,买入,1000,1.5,666.67';
+    const result = importTransactionsFromCSV(csv);
+    expect(result[0].date).toBe('2024-03-05');
+  });
+
+  it('非法日期格式抛出错误', () => {
+    const csv = '日期,基金代码,基金名称,类型,金额,价格,份额\n2024年3月5日,000001,测试基金,买入,1000,1.5,666.67';
+    expect(() => importTransactionsFromCSV(csv)).toThrow('日期格式无效');
+  });
+
+  it('不存在的日期抛出错误', () => {
+    const csv = '日期,基金代码,基金名称,类型,金额,价格,份额\n2024-02-30,000001,测试基金,买入,1000,1.5,666.67';
+    expect(() => importTransactionsFromCSV(csv)).toThrow('日期不存在');
+  });
+
+  it('Infinity / 科学计数溢出被拒绝', () => {
+    const csv = '日期,基金代码,基金名称,类型,金额,价格,份额\n2024-03-10,000001,测试基金,买入,1e999,1.5,666.67';
+    expect(() => importTransactionsFromCSV(csv)).toThrow('金额、价格、份额必须为有效数字');
+  });
+
+  it('尾部垃圾字符的数字被拒绝', () => {
+    const csv = '日期,基金代码,基金名称,类型,金额,价格,份额\n2024-03-10,000001,测试基金,买入,12abc,1.5,666.67';
+    expect(() => importTransactionsFromCSV(csv)).toThrow('金额、价格、份额必须为有效数字');
+  });
+
+  it('负数金额被拒绝', () => {
+    const csv = '日期,基金代码,基金名称,类型,金额,价格,份额\n2024-03-10,000001,测试基金,买入,-1000,1.5,666.67';
+    expect(() => importTransactionsFromCSV(csv)).toThrow('不能为负数');
+  });
+});
+
+describe('normalizeDateString（修复 D）', () => {
+  it('标准格式原样返回', () => {
+    expect(normalizeDateString('2024-03-05')).toBe('2024-03-05');
+  });
+  it('斜杠/点分隔与不补零都规范化', () => {
+    expect(normalizeDateString('2024/3/5')).toBe('2024-03-05');
+    expect(normalizeDateString('2024.3.5')).toBe('2024-03-05');
+    expect(normalizeDateString(' 2024-3-5 ')).toBe('2024-03-05');
+  });
+  it('月份越界抛错', () => {
+    expect(() => normalizeDateString('2024-13-01')).toThrow('日期数值越界');
+  });
+  it('完全非法格式抛错', () => {
+    expect(() => normalizeDateString('not-a-date')).toThrow('日期格式无效');
   });
 });

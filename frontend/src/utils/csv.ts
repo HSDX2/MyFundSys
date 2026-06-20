@@ -17,7 +17,12 @@ export function exportToCSV(data: any[], filename: string) {
     ...data.map(row => 
       headers.map(header => {
         const value = row[header];
-        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.startsWith('=') || value.startsWith('@') || value.startsWith('+'))) {
+        // 修复 C：含换行符(\n/\r)的字段也必须用引号包裹，否则一条记录会被拆成多行破坏 CSV 结构
+        if (typeof value === 'string' && (
+          value.includes(',') || value.includes('"') ||
+          value.includes('\n') || value.includes('\r') ||
+          value.startsWith('=') || value.startsWith('@') || value.startsWith('+')
+        )) {
           return `"${value.replace(/"/g, '""')}"`;
         }
         return value ?? '';
@@ -134,6 +139,30 @@ export function exportTransactionsToCSV(transactions: Transaction[]) {
 // ============================================
 
 /**
+ * 规范化日期字符串为 YYYY-MM-DD（修复 D）。
+ * 支持 2024-1-5 / 2024/1/5 / 2024.1.5 等常见写法；非法日期抛错，避免字符串比较误判在途。
+ */
+export function normalizeDateString(raw: string): string {
+  const s = raw.trim();
+  const m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (!m) {
+    throw new Error(`日期格式无效: "${raw}"（应为 YYYY-MM-DD）`);
+  }
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    throw new Error(`日期数值越界: "${raw}"`);
+  }
+  // 用 Date 反校验真实存在的日期（如 2024-02-30 非法）
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
+    throw new Error(`日期不存在: "${raw}"`);
+  }
+  return `${m[1]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
  * 解析交易记录 CSV 文件
  * @param csvText CSV 文件内容
  * @returns 交易记录数组（需调用 saveTransaction 保存到数据库）
@@ -175,8 +204,14 @@ export function importTransactionsFromCSV(csvText: string): Omit<Transaction, 'i
       throw new Error(`第 ${rowNumber} 行: 类型必须为"买入"或"卖出"`);
     }
 
-    // 解析数值（支持千位分隔符）
-    const toNum = (v: unknown) => parseFloat(String(v).replace(/,/g, ''));
+    // 解析数值（支持千位分隔符）。修复 D：用严格解析，拒绝 Infinity / 尾部垃圾 / 非有限值
+    const toNum = (v: unknown): number => {
+      const cleaned = String(v).replace(/,/g, '').trim();
+      // 仅接受合法数字字面量（可带正负号与小数），拒绝 "12abc"、"1e999"→Infinity、"1.2.3"
+      if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(cleaned)) return NaN;
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : NaN;
+    };
     const amount = toNum(row['金额']);
     const price = toNum(row['价格']);
     const shares = toNum(row['份额']);
@@ -185,8 +220,14 @@ export function importTransactionsFromCSV(csvText: string): Omit<Transaction, 'i
     if (isNaN(amount) || isNaN(price) || isNaN(shares)) {
       throw new Error(`第 ${rowNumber} 行: 金额、价格、份额必须为有效数字`);
     }
+    if (isNaN(fee)) {
+      throw new Error(`第 ${rowNumber} 行: 手续费必须为有效数字`);
+    }
+    if (amount < 0 || price < 0 || shares < 0 || fee < 0) {
+      throw new Error(`第 ${rowNumber} 行: 金额、价格、份额、手续费不能为负数`);
+    }
 
-    const txDate = String(row['日期']).trim();
+    const txDate = normalizeDateString(String(row['日期']));
     const today = formatLocalDate(new Date());
     const isPending = txDate >= today;
 

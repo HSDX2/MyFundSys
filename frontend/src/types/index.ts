@@ -47,6 +47,7 @@ export interface Transaction {
   status?: 'pending' | 'completed';  // 交易状态：pending=在途等待净值，completed=已完成
   source?: 'manual' | 'grid';  // 来源：手动交易 / 网格触发
   gridExecutionId?: string;  // 关联 grid_executions.id（网格交易精确匹配）
+  lotId?: string;  // sell 交易指向被卖出的买入批次（买入交易 id），用于按批次精确匹配
   createdAt: string;
 }
 

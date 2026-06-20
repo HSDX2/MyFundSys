@@ -22,6 +22,7 @@ export interface Database {
           status: 'pending' | 'completed';
           source: string;
           grid_execution_id: string | null;
+          lot_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -39,6 +40,7 @@ export interface Database {
           status?: 'pending' | 'completed';
           source?: string;
           grid_execution_id?: string | null;
+          lot_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };

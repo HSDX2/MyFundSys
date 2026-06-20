@@ -431,7 +431,8 @@ describe('useGridDetail', () => {
     const { result } = renderHook(() => useGridDetail('000001'));
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => { await result.current.sellGridLevel('small', 1); });
-    expect(mockCalculateSellShares).toHaveBeenCalledWith(1000, 0);
+    // 修复 #5：基于 remaining_shares（默认 800）而非 executed_shares
+    expect(mockCalculateSellShares).toHaveBeenCalledWith(800, 0);
     expect(mockExecuteGrid).toHaveBeenCalledWith(expect.objectContaining({
       strategyId: 'gs_001',
       fundCode: '000001',
@@ -459,14 +460,14 @@ describe('useGridDetail', () => {
         {
           level: 1, trigger_price: 1.0, investment: 1000, cumulative: 1000, sell_price: 1.05, profit: 50, profit_retention_pct: 0,
           status: 'executed', distance_pct: 5,
-          execution: makeExecution({ executed_shares: 1000 }),
+          execution: makeExecution({ executed_shares: 1000, remaining_shares: 1000 }),
         },
       ],
       medium: [
         {
           level: 1, trigger_price: 1.0, investment: 2000, cumulative: 2000, sell_price: 1.1, profit: 200, profit_retention_pct: 0,
           status: 'executed', distance_pct: 0,
-          execution: makeExecution({ grid_type: 'medium', grid_level: 1, executed_shares: 500 }),
+          execution: makeExecution({ grid_type: 'medium', grid_level: 1, executed_shares: 500, remaining_shares: 500 }),
         },
       ],
       large: [
@@ -481,11 +482,12 @@ describe('useGridDetail', () => {
     await act(async () => { await result.current.liquidateGridFund(); });
     expect(mockExecuteGrid).toHaveBeenCalledTimes(2);
     const calls = mockExecuteGrid.mock.calls;
+    // 修复 #5：清仓卖出剩余份额 remaining_shares
     expect(calls[0][0]).toMatchObject({ gridType: 'small', gridLevel: 1, action: 'sell', sellShares: 1000 });
     expect(calls[1][0]).toMatchObject({ gridType: 'medium', gridLevel: 1, action: 'sell', sellShares: 500 });
   });
 
-  it('liquidateGridFund 跳过 executed_shares <= 0 的格子', async () => {
+  it('liquidateGridFund 跳过 remaining_shares <= 0 的格子', async () => {
     const strategy = makeStrategy();
     mockFetchGridStrategyByFund.mockResolvedValue(strategy);
     mockDeriveGridStatuses.mockReturnValue({
@@ -493,14 +495,14 @@ describe('useGridDetail', () => {
         {
           level: 1, trigger_price: 1.0, investment: 1000, cumulative: 1000, sell_price: 1.05, profit: 50, profit_retention_pct: 0,
           status: 'executed', distance_pct: 5,
-          execution: makeExecution({ executed_shares: 0 }),
+          execution: makeExecution({ executed_shares: 1000, remaining_shares: 0 }),
         },
       ],
       medium: [
         {
           level: 1, trigger_price: 1.0, investment: 2000, cumulative: 2000, sell_price: 1.1, profit: 200, profit_retention_pct: 0,
           status: 'executed', distance_pct: 0,
-          execution: makeExecution({ grid_type: 'medium', grid_level: 1, executed_shares: 500 }),
+          execution: makeExecution({ grid_type: 'medium', grid_level: 1, executed_shares: 500, remaining_shares: 500 }),
         },
       ],
       large: [],

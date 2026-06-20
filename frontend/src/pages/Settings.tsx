@@ -3,7 +3,7 @@ import { Card, List, Button, Toast, Dialog } from 'antd-mobile';
 import { exportDatabase, importDatabase, resetDatabase } from '../db';
 import { useTransactions, useHoldings } from '../hooks/useSync';
 import { exportHoldingsToCSV, exportTransactionsToCSV, importTransactionsFromCSV, formatLocalDate } from '../utils/csv';
-import { addTransactionWithHoldingUpdate } from '../services/navUpdateService';
+import { addTransactionWithHoldingUpdate, processPendingTransactions } from '../services/navUpdateService';
 import './Layout.css';
 
 const Settings: React.FC = () => {
@@ -91,23 +91,48 @@ const Settings: React.FC = () => {
         return;
       }
 
-      // 批量导入交易
+      // 批量导入交易（修复 N：去重 + 失败明细 + 导入后触发在途处理）
+      // 去重键：基金代码|日期|类型|份额|金额，与现有交易及本批已导入的比对
+      const dedupKey = (t: { fundCode: string; date: string; type: string; shares: number; amount: number }) =>
+        `${t.fundCode}|${t.date}|${t.type}|${t.shares}|${t.amount}`;
+      const seen = new Set<string>(
+        transactions.map(t => dedupKey({ fundCode: t.fundCode, date: t.date, type: t.type, shares: t.shares, amount: t.amount }))
+      );
+
       let successCount = 0;
       let failCount = 0;
-      for (const tx of parsedTransactions) {
+      let skippedCount = 0;
+      const errorDetails: string[] = [];
+      for (let i = 0; i < parsedTransactions.length; i++) {
+        const tx = parsedTransactions[i];
+        const key = dedupKey(tx);
+        if (seen.has(key)) {
+          skippedCount++;
+          continue;
+        }
         try {
           await addTransactionWithHoldingUpdate(tx);
+          seen.add(key);
           successCount++;
-        } catch {
+        } catch (err) {
           failCount++;
+          const msg = err instanceof Error ? err.message : '未知错误';
+          if (errorDetails.length < 5) errorDetails.push(`第 ${i + 1} 笔: ${msg}`);
         }
       }
 
-      if (failCount === 0) {
-        Toast.show({ content: `成功导入 ${successCount} 笔交易`, position: 'bottom' });
-      } else {
-        Toast.show({ content: `导入完成: ${successCount} 成功, ${failCount} 失败`, position: 'bottom' });
-      }
+      // 导入后处理在途交易（导入的历史交易若 pending 可被即时确认）
+      try {
+        await processPendingTransactions();
+      } catch { /* 在途处理失败不阻塞导入结果提示 */ }
+
+      const parts = [`${successCount} 成功`];
+      if (skippedCount > 0) parts.push(`${skippedCount} 重复跳过`);
+      if (failCount > 0) parts.push(`${failCount} 失败`);
+      const resultMsg = failCount > 0 && errorDetails.length > 0
+        ? `导入完成: ${parts.join(', ')}\n${errorDetails.join('\n')}`
+        : `导入完成: ${parts.join(', ')}`;
+      Toast.show({ content: resultMsg, position: 'bottom', duration: failCount > 0 ? 5000 : 2000 });
 
       await refresh();
     } catch (err) {

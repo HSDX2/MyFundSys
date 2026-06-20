@@ -985,6 +985,8 @@ describe('gridService', () => {
   // ============================================
   describe('executeGrid (sell)', () => {
     it('成功创建卖出交易和执行记录', async () => {
+      // 买入 execution 剩余份额读取（修复 A 的上限校验）
+      mockSelectResult.mockResolvedValue({ data: { remaining_shares: 1000, executed_shares: 1000 }, error: null });
       mockInsertResult.mockResolvedValue({ data: { id: 'ge_sell_001' }, error: null });
 
       const result = await executeGrid({
@@ -1055,6 +1057,7 @@ describe('gridService', () => {
     });
 
     it('卖出执行记录写入失败抛出错误', async () => {
+      mockSelectResult.mockResolvedValue({ data: { remaining_shares: 1000, executed_shares: 1000 }, error: null });
       mockInsertResult.mockResolvedValue({ data: null, error: { message: 'Insert failed' } });
 
       await expect(executeGrid({
@@ -1069,6 +1072,40 @@ describe('gridService', () => {
         currentNav: 0.6,
         buyExecutionId: 'ge_buy_001',
       })).rejects.toThrow('写入卖出执行记录失败');
+    });
+
+    it('卖出份额超过剩余可卖份额时抛出错误（修复 A）', async () => {
+      mockSelectResult.mockResolvedValue({ data: { remaining_shares: 500, executed_shares: 1000 }, error: null });
+
+      await expect(executeGrid({
+        strategyId: 'gs_001',
+        fundCode: '000001',
+        fundName: '测试基金',
+        gridType: 'small',
+        gridLevel: 1,
+        action: 'sell',
+        triggerPrice: 0.5,
+        sellShares: 800,
+        currentNav: 0.6,
+        buyExecutionId: 'ge_buy_001',
+      })).rejects.toThrow('超过该网格剩余可卖份额');
+    });
+
+    it('买入执行记录不存在时抛出错误（修复 A）', async () => {
+      mockSelectResult.mockResolvedValue({ data: null, error: null });
+
+      await expect(executeGrid({
+        strategyId: 'gs_001',
+        fundCode: '000001',
+        fundName: '测试基金',
+        gridType: 'small',
+        gridLevel: 1,
+        action: 'sell',
+        triggerPrice: 0.5,
+        sellShares: 100,
+        currentNav: 0.6,
+        buyExecutionId: 'ge_missing',
+      })).rejects.toThrow('未找到对应的买入执行记录');
     });
   });
 

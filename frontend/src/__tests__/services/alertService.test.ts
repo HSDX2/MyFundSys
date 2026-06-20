@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockInsert = vi.hoisted(() => vi.fn());
+const mockUpsert = vi.hoisted(() => vi.fn());
 const mockSelect = vi.hoisted(() => vi.fn());
 const mockUpdate = vi.hoisted(() => vi.fn());
 const mockEq = vi.hoisted(() => vi.fn());
 const mockOrder = vi.hoisted(() => vi.fn());
 const mockFrom = vi.hoisted(() => vi.fn(() => ({
   insert: mockInsert,
+  upsert: mockUpsert,
   select: mockSelect,
   update: mockUpdate,
 })));
@@ -25,8 +27,8 @@ describe('alertService', () => {
   });
 
   describe('createAlert', () => {
-    it('supabase.from("pending_alerts").insert 被正确调用', async () => {
-      mockInsert.mockResolvedValue({ error: null });
+    it('使用 upsert 按 (transaction_id, reason) 去重写入', async () => {
+      mockUpsert.mockResolvedValue({ error: null });
 
       await createAlert({
         transactionId: 'tx_001',
@@ -37,16 +39,42 @@ describe('alertService', () => {
       });
 
       expect(mockFrom).toHaveBeenCalledWith('pending_alerts');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        {
+          transaction_id: 'tx_001',
+          fund_code: '000001',
+          confirm_date: '2024-03-11',
+          reason: 'no_nav_data',
+          detail: '无法获取 000001 在 2024-03-11 的净值',
+        },
+        { onConflict: 'transaction_id,reason', ignoreDuplicates: true }
+      );
+      // 去重 upsert 成功时不应再走普通 insert
+      expect(mockInsert).not.toHaveBeenCalled();
+    });
+
+    it('唯一约束缺失时回退到普通 insert', async () => {
+      mockUpsert.mockResolvedValue({ error: { message: 'there is no unique constraint matching' } });
+      mockInsert.mockResolvedValue({ error: null });
+
+      await createAlert({
+        transactionId: 'tx_002',
+        fundCode: '000002',
+        confirmDate: '2024-03-12',
+        reason: 'api_error',
+        detail: 'fallback',
+      });
+
       expect(mockInsert).toHaveBeenCalledWith({
-        transaction_id: 'tx_001',
-        fund_code: '000001',
-        confirm_date: '2024-03-11',
-        reason: 'no_nav_data',
-        detail: '无法获取 000001 在 2024-03-11 的净值',
+        transaction_id: 'tx_002',
+        fund_code: '000002',
+        confirm_date: '2024-03-12',
+        reason: 'api_error',
+        detail: 'fallback',
       });
     });
 
-    it('Supabase 未配置时不调用 insert', async () => {
+    it('Supabase 未配置时不调用 upsert', async () => {
       mockIsSupabaseConfigured.mockReturnValueOnce(false);
 
       await createAlert({

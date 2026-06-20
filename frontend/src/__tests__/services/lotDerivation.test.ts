@@ -485,3 +485,130 @@ describe('gridExecutionId 精确匹配', () => {
     expect(result.remainingShares).toBe(0);
   });
 });
+
+// ============================================
+// 修复 #1：lot_id 精确匹配（手动按批次卖出）
+// ============================================
+describe('lot_id 精确匹配 - 按批次卖出', () => {
+  it('deriveLots 优先按 lotId 扣减指定批次，而非成本最低批次', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy_low', date: '2024-01-01', shares: 1000, price: 1.0 }),  // 成本最低
+      makeBuyTx({ id: 'buy_high', date: '2024-02-01', shares: 1000, price: 2.0 }), // 用户想卖这个
+      makeSellTx({ id: 'sell_001', date: '2024-03-01', shares: 300, price: 1.5, lotId: 'buy_high' }),
+    ];
+
+    const lots = deriveLots(txs);
+    const low = lots.find(l => l.id === 'buy_low');
+    const high = lots.find(l => l.id === 'buy_high');
+
+    // 成本最低的批次不应被动，扣的是用户指定的 buy_high
+    expect(low?.remainingShares).toBe(1000);
+    expect(high?.remainingShares).toBe(700);
+  });
+
+  it('deriveRealizedLots 按 lotId 计算被卖批次的盈亏', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy_low', date: '2024-01-01', shares: 1000, price: 1.0 }),
+      makeBuyTx({ id: 'buy_high', date: '2024-02-01', shares: 1000, price: 2.0 }),
+      makeSellTx({ id: 'sell_001', date: '2024-03-01', shares: 300, price: 1.5, lotId: 'buy_high' }),
+    ];
+
+    const realized = deriveRealizedLots(txs);
+
+    expect(realized).toHaveLength(1);
+    expect(realized[0].id).toBe('buy_high');
+    // 卖出 buy_high（成本 2.0）300 份，亏损：300 * (1.5 - 2.0) = -150
+    expect(realized[0].profit).toBeCloseTo(-150, 0);
+  });
+
+  it('lotId 份额不足时 fallback 到成本升序', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy_low', date: '2024-01-01', shares: 100, price: 1.0 }),
+      makeBuyTx({ id: 'buy_high', date: '2024-02-01', shares: 100, price: 2.0 }),
+      makeSellTx({ id: 'sell_001', date: '2024-03-01', shares: 150, price: 1.5, lotId: 'buy_high' }),
+    ];
+
+    const lots = deriveLots(txs);
+    const low = lots.find(l => l.id === 'buy_low');
+    const high = lots.find(l => l.id === 'buy_high');
+
+    // 先扣完 buy_high 100 份，剩 50 份 fallback 到成本最低的 buy_low
+    expect(high).toBeUndefined();
+    expect(low?.remainingShares).toBe(50);
+  });
+
+  it('matchSellLots 支持 lotId 精确匹配', () => {
+    const lots: Lot[] = [
+      { id: 'low', fundCode: '000001', fundName: 'A', shares: 100, remainingShares: 100, cost: 1.0, date: '2024-01-01', isPending: false },
+      { id: 'high', fundCode: '000001', fundName: 'A', shares: 100, remainingShares: 100, cost: 2.0, date: '2024-02-01', isPending: false },
+    ];
+
+    const result = matchSellLots(lots, '000001', 60, undefined, 'high');
+
+    expect(result.lotsUsed).toHaveLength(1);
+    expect(result.lotsUsed[0].lotId).toBe('high');
+    expect(result.remainingShares).toBe(0);
+  });
+});
+
+// ============================================
+// 修复 #4：手续费分摊后的盈亏计算
+// ============================================
+describe('手续费分摊盈亏', () => {
+  it('买入/卖出手续费按份额比例计入成本与收入', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 1000, price: 1.0, fee: 10 }),
+      makeSellTx({ id: 'sell_001', date: '2024-02-01', shares: 1000, price: 1.2, fee: 12 }),
+    ];
+
+    const realized = deriveRealizedLots(txs);
+
+    // cost = 1000*1.0 + 10 = 1010; revenue = 1000*1.2 - 12 = 1188; profit = 178
+    expect(realized[0].cost).toBeCloseTo(1010, 2);
+    expect(realized[0].revenue).toBeCloseTo(1188, 2);
+    expect(realized[0].profit).toBeCloseTo(178, 2);
+  });
+
+  it('部分卖出按比例分摊手续费', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 1000, price: 1.0, fee: 10 }),
+      makeSellTx({ id: 'sell_001', date: '2024-02-01', shares: 500, price: 1.2, fee: 6 }),
+    ];
+
+    const realized = deriveRealizedLots(txs);
+
+    // 卖 500/1000：买入费分摊 10*500/1000=5；卖出费 6*500/500=6
+    // cost = 500*1.0 + 5 = 505; revenue = 500*1.2 - 6 = 594; profit = 89
+    expect(realized[0].cost).toBeCloseTo(505, 2);
+    expect(realized[0].revenue).toBeCloseTo(594, 2);
+    expect(realized[0].profit).toBeCloseTo(89, 2);
+  });
+
+  it('fee 为 0 时盈亏不含手续费', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy_001', date: '2024-01-01', shares: 1000, price: 1.0, fee: 0 }),
+      makeSellTx({ id: 'sell_001', date: '2024-02-01', shares: 1000, price: 1.2, fee: 0 }),
+    ];
+
+    const realized = deriveRealizedLots(txs);
+    expect(realized[0].profit).toBeCloseTo(200, 2);
+  });
+});
+
+// ============================================
+// 修复 #8：同日交易按 createdAt 稳定排序
+// ============================================
+describe('同日交易稳定排序', () => {
+  it('同日多笔买入按 createdAt 顺序匹配，结果稳定', () => {
+    const txs = [
+      makeBuyTx({ id: 'buy_b', date: '2024-01-01', shares: 100, price: 1.0, createdAt: '2024-01-01T10:00:00Z' }),
+      makeBuyTx({ id: 'buy_a', date: '2024-01-01', shares: 100, price: 1.0, createdAt: '2024-01-01T09:00:00Z' }),
+      makeSellTx({ id: 'sell', date: '2024-02-01', shares: 100, price: 1.5, createdAt: '2024-02-01T09:00:00Z' }),
+    ];
+
+    const realized = deriveRealizedLots(txs);
+    // 成本相同，先创建的 buy_a 先被匹配
+    expect(realized).toHaveLength(1);
+    expect(realized[0].id).toBe('buy_a');
+  });
+});

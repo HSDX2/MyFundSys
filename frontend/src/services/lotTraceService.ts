@@ -1,4 +1,5 @@
 import { batchFetchNav, fetchFundNav } from './fundApi';
+import { calcLotProfit } from './navUpdateService';
 import type { Transaction } from '../types';
 import type { LotTimeline, LotTimelineItem } from '../types';
 
@@ -8,24 +9,25 @@ interface BuyLotState {
   remainingShares: number;
   cost: number;
   date: string;
+  buyFee: number;
   gridExecutionId?: string;
   items: LotTimelineItem[];
-}
-
-function calcProfit(sellFromLot: number, sellPrice: number, lotCost: number, sellFee: number | undefined, sellShares: number | undefined, buyFee: number | undefined): { profit: number; profitRate: number } {
-  const totalSellShares = sellShares || 1;
-  const costBasis = sellFromLot * lotCost + (buyFee || 0) * (sellFromLot / totalSellShares);
-  const revenue = sellFromLot * sellPrice - (sellFee || 0) * (sellFromLot / totalSellShares);
-  const profit = revenue - costBasis;
-  const profitRate = costBasis > 0 ? profit / costBasis : 0;
-  return { profit, profitRate };
 }
 
 function matchSellToLots(sell: Transaction, lots: BuyLotState[], buys: Transaction[]) {
   let remainingToSell = sell.shares;
   const match = (lot: BuyLotState) => {
     const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-    const { profit, profitRate } = calcProfit(sellFromLot, sell.price, lot.cost, sell.fee, sell.shares, 0);
+    // 修复 #4：与 deriveRealizedLots 统一手续费分摊公式
+    const { profit, profitRate } = calcLotProfit({
+      soldShares: sellFromLot,
+      buyNav: lot.cost,
+      sellNav: sell.price,
+      buyFee: lot.buyFee,
+      buyTotalShares: lot.shares,
+      sellFee: sell.fee,
+      sellTotalShares: sell.shares,
+    });
     const sellTime = new Date(sell.date).getTime();
     const buyTime = new Date(lot.date).getTime();
     const holdingDays = !isNaN(sellTime) && !isNaN(buyTime)
@@ -38,7 +40,15 @@ function matchSellToLots(sell: Transaction, lots: BuyLotState[], buys: Transacti
     remainingToSell -= sellFromLot;
   };
 
-  if (sell.gridExecutionId) {
+  // 匹配优先级：lot_id 精确 → gridExecutionId 精确 → 成本升序（与 deriveLots 一致）
+  if (sell.lotId) {
+    const targetLots = lots.filter(l => l.remainingShares > 0 && l.id === sell.lotId);
+    for (const lot of targetLots) {
+      if (remainingToSell <= 0) break;
+      match(lot);
+    }
+  }
+  if (remainingToSell > 0 && sell.gridExecutionId) {
     const targetLots = lots.filter(l => l.remainingShares > 0 && l.gridExecutionId === sell.gridExecutionId).sort((a, b) => a.cost - b.cost);
     for (const lot of targetLots) {
       if (remainingToSell <= 0) break;
@@ -65,6 +75,7 @@ export function groupTransactionsByLot(transactions: Transaction[], fundCode: st
     remainingShares: b.status === 'completed' ? b.shares : 0,
     cost: b.price || 0,
     date: b.date,
+    buyFee: b.fee || 0,
     gridExecutionId: b.gridExecutionId,
     items: [],
   }));

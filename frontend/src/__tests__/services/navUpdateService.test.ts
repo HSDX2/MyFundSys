@@ -386,21 +386,31 @@ describe('addTransactionWithHoldingUpdate', () => {
 
 describe('removeTransactionWithHoldingUpdate', () => {
   it('正常删除', async () => {
-    mockFrom
-      .mockReturnValueOnce({
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'grid_executions') {
+        // 非网格交易：grid_executions 查询返回空
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
+      }
+      // transactions：select + delete
+      return {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             limit: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'tx1', fund_code: '000001' }, error: null }),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'tx1', fund_code: '000001', type: 'buy' }, error: null }),
             }),
           }),
         }),
-      })
-      .mockReturnValueOnce({
         delete: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({ error: null }),
         }),
-      });
+      };
+    });
 
     await expect(removeTransactionWithHoldingUpdate('tx1')).resolves.toBeUndefined();
   });
@@ -420,23 +430,106 @@ describe('removeTransactionWithHoldingUpdate', () => {
   });
 
   it('删除失败抛出错误', async () => {
-    mockFrom
-      .mockReturnValueOnce({
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'grid_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
+      }
+      return {
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             limit: vi.fn().mockReturnValue({
-              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'tx1' }, error: null }),
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'tx1', type: 'buy' }, error: null }),
             }),
           }),
         }),
-      })
-      .mockReturnValueOnce({
         delete: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({ error: { message: 'db error' } }),
         }),
-      });
+      };
+    });
 
     await expect(removeTransactionWithHoldingUpdate('tx1')).rejects.toThrow('删除交易失败: db error');
+  });
+
+  it('删除网格卖出交易：回补买入 execution 的 remaining_shares（修复 K）', async () => {
+    const updateSpy = vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) });
+    // 共享的 maybeSingle：两次 grid_executions 查询依次返回卖出 exec、买入 exec
+    const geMaybeSingle = vi.fn()
+      .mockResolvedValueOnce({ data: { id: 'ge_sell', action: 'sell', executed_shares: 300, transaction_id: 'txSell' }, error: null })
+      .mockResolvedValueOnce({ data: { remaining_shares: 200, executed_shares: 1000 }, error: null });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'grid_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({ maybeSingle: geMaybeSingle }),
+          }),
+          update: updateSpy,
+        };
+      }
+      return {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: 'txSell', type: 'sell', shares: 300, grid_execution_id: 'ge_buy' },
+                error: null,
+              }),
+            }),
+          }),
+        }),
+        delete: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+      };
+    });
+
+    await removeTransactionWithHoldingUpdate('txSell');
+
+    // 买入 execution 的 remaining_shares 应被回补：200 + 300 = 500（不超过 executed 1000）
+    const restoreCall = updateSpy.mock.calls.find(c => c[0]?.remaining_shares != null);
+    expect(restoreCall?.[0].remaining_shares).toBeCloseTo(500, 4);
+  });
+
+  it('删除被卖出引用的网格买入交易：阻止删除（修复 K）', async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'grid_executions') {
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'ge_buy', action: 'buy', transaction_id: 'txBuy' }, error: null }),
+            }),
+          }),
+        };
+      }
+      return {
+        select: vi.fn((cols: string) => {
+          // navUpdateService 用 select('id').eq().eq().limit() 检查卖出引用
+          if (cols === 'id') {
+            return {
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({ data: [{ id: 'txSell' }], error: null }),
+                }),
+              }),
+            };
+          }
+          return {
+            eq: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'txBuy', type: 'buy', grid_execution_id: 'ge_buy' }, error: null }),
+              }),
+            }),
+          };
+        }),
+        delete: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+      };
+    });
+
+    await expect(removeTransactionWithHoldingUpdate('txBuy')).rejects.toThrow('已被卖出引用');
   });
 });
 
@@ -593,7 +686,8 @@ describe('processPendingTransactions', () => {
     expect(mockFetchFundHistory).toHaveBeenCalledTimes(2);
   });
 
-  it('净值获取失败降级到最新净值', async () => {
+  it('取不到确认日净值且确认日在阈值内：保持 pending 不降级成交', async () => {
+    // confirm_date=2024-03-11，距今(2024-03-15)4天 < 5天阈值 → 静默等待，不用最新净值凑数
     const pendingTx = {
       id: 'tx1', fund_code: '000001', fund_name: 'A', type: 'buy', amount: 1000, shares: 0,
       date: '2024-03-10', confirm_date: '2024-03-11', status: 'pending',
@@ -618,11 +712,12 @@ describe('processPendingTransactions', () => {
     });
 
     mockFetchFundHistory.mockResolvedValue([]);
-    mockFetchFundNav.mockResolvedValue({ nav: 1.5, navDate: '2024-03-14' });
 
     const result = await processPendingTransactions();
-    expect(result.processedCount).toBe(1);
-    expect(mockFetchFundNav).toHaveBeenCalledWith('000001');
+    expect(result.processedCount).toBe(0);
+    expect(result.pendingCount).toBe(1);
+    // 不再调用 fetchFundNav 降级
+    expect(mockFetchFundNav).not.toHaveBeenCalled();
   });
 
   it('navDate < confirmDate 且确认日超过5天跳过', async () => {
@@ -660,10 +755,10 @@ describe('processPendingTransactions', () => {
     expect(result.pendingCount).toBe(1);
   });
 
-  it('navDate < confirmDate 但确认日在5天内仍处理', async () => {
+  it('确认日有真实历史净值时正常成交', async () => {
     const pendingTx = {
       id: 'tx1', fund_code: '000001', fund_name: 'A', type: 'buy', amount: 1000, shares: 0,
-      date: '2024-03-10', confirm_date: '2024-03-10', status: 'pending',
+      date: '2024-03-10', confirm_date: '2024-03-11', status: 'pending',
     };
 
     let callCount = 0;
@@ -684,12 +779,14 @@ describe('processPendingTransactions', () => {
       };
     });
 
-    mockFetchFundHistory.mockResolvedValue([]);
-    mockFetchFundNav.mockResolvedValue({ nav: 1.5, navDate: '2024-03-09' });
+    // 确认日 2024-03-11 有真实净值
+    mockFetchFundHistory.mockResolvedValue([{ date: '2024-03-11', nav: 1.5 }]);
 
     const result = await processPendingTransactions();
     expect(result.processedCount).toBe(1);
     expect(result.pendingCount).toBe(0);
+    // 不需要降级
+    expect(mockFetchFundNav).not.toHaveBeenCalled();
   });
 
   it('confirmDate >= today 跳过', async () => {
@@ -800,16 +897,17 @@ describe('processPendingTransactions', () => {
     expect(updatePayloads[0].status).toBe('completed');
   });
 
-  it('无法获取净值记录错误', async () => {
+  it('确认日超过阈值仍取不到净值：写告警并记录错误', async () => {
+    // confirm_date=2024-03-01，距今(2024-03-15)14天 > 5天阈值 → 写告警
     const pendingTx = {
       id: 'tx1', fund_code: '000001', fund_name: 'A', type: 'buy', amount: 1000, shares: 0,
-      date: '2024-03-10', confirm_date: '2024-03-11', status: 'pending',
+      date: '2024-02-28', confirm_date: '2024-03-01', status: 'pending',
     };
 
     let callCount = 0;
     mockFrom.mockImplementation((tableName: string) => {
       if (tableName === 'pending_alerts') {
-        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+        return { upsert: vi.fn().mockResolvedValue({ error: null }) };
       }
       if (tableName !== 'transactions') return {};
       callCount++;
@@ -869,7 +967,7 @@ describe('processPendingTransactions', () => {
     expect(result.errors).toContain('000001: 更新失败: update failed');
   });
 
-  it('fetchFundHistory 抛异常静默忽略', async () => {
+  it('fetchFundHistory 抛异常记录净值获取失败错误', async () => {
     const pendingTx = {
       id: 'tx1', fund_code: '000001', fund_name: 'A', type: 'buy', amount: 1000, shares: 0,
       date: '2024-03-10', confirm_date: '2024-03-11', status: 'pending',
@@ -878,7 +976,7 @@ describe('processPendingTransactions', () => {
     let callCount = 0;
     mockFrom.mockImplementation((tableName: string) => {
       if (tableName === 'pending_alerts') {
-        return { insert: vi.fn().mockResolvedValue({ error: null }) };
+        return { upsert: vi.fn().mockResolvedValue({ error: null }) };
       }
       if (tableName !== 'transactions') return {};
       callCount++;
@@ -900,6 +998,6 @@ describe('processPendingTransactions', () => {
 
     const result = await processPendingTransactions();
     expect(result.processedCount).toBe(0);
-    expect(result.errors).toContain('000001: 无法获取净值');
+    expect(result.errors).toContain('000001: 净值获取失败 — network error');
   });
 });

@@ -272,6 +272,27 @@ export async function executeGrid(
   const sellShares = params.sellShares;
   const sellAmount = sellShares * currentNav;
 
+  // 修复 A：服务层校验卖出份额不得超过买入 execution 的剩余份额，杜绝超卖。
+  // （此前仅 UI 调用方传 remaining_shares 做约束，服务层无防御；任何绕过 UI 的调用会静默超卖。）
+  const { data: buyExecForCheck, error: buyCheckError } = await (supabase
+    .from('grid_executions') as any)
+    .select('remaining_shares, executed_shares')
+    .eq('id', buyExecutionId)
+    .maybeSingle();
+  if (buyCheckError) {
+    throw new Error(`查询买入执行记录失败: ${buyCheckError.message}`);
+  }
+  if (!buyExecForCheck) {
+    throw new Error('未找到对应的买入执行记录，无法卖出');
+  }
+  const availableShares = buyExecForCheck.remaining_shares != null
+    ? Number(buyExecForCheck.remaining_shares)
+    : Number(buyExecForCheck.executed_shares ?? 0);
+  // 容忍份额精度误差（1e-4）
+  if (sellShares > availableShares + 1 / SHARE_PRECISION) {
+    throw new Error(`卖出份额(${sellShares})超过该网格剩余可卖份额(${availableShares})`);
+  }
+
   // 1. 创建卖出交易记录（关联买入 execution）
   const { transactionId } = await addTransactionWithHoldingUpdate({
     fundId: fundCode,
@@ -311,14 +332,8 @@ export async function executeGrid(
   }
 
   // 3. 更新买入 execution 的 remaining_shares（支持部分卖出）
-  const { data: buyExec } = await (supabase
-    .from('grid_executions') as any)
-    .select('remaining_shares')
-    .eq('id', buyExecutionId)
-    .maybeSingle();
-
-  const currentRemaining = buyExec?.remaining_shares != null ? buyExec.remaining_shares : 0;
-  const newRemaining = Math.max(0, Math.round((currentRemaining - sellShares) * SHARE_PRECISION) / SHARE_PRECISION);
+  // 复用上面校验时读到的 availableShares，避免二次读取产生漂移
+  const newRemaining = Math.max(0, Math.round((availableShares - sellShares) * SHARE_PRECISION) / SHARE_PRECISION);
   const { error: updateError } = await (supabase
     .from('grid_executions') as any)
     .update({ remaining_shares: newRemaining })
@@ -362,46 +377,70 @@ export async function cancelGridExecution(executionId: string): Promise<void> {
     }
   }
 
-  // 如果是卖出 execution 被取消，恢复对应买入 execution 的 remaining_shares
+  // 修复 B：原子性与顺序。
+  // 此前顺序为「先恢复份额 → 再删交易 → 再标 cancelled」，中途失败会留下
+  // 「份额已恢复但卖出记录仍 executed」的脏状态（份额被重复计入）。
+  // 改为「先删交易 → 再标 cancelled → 最后恢复份额」：恢复份额是幂等的最后一步，
+  // 即使失败也只是少恢复（保守），不会出现重复计入。
+  //
+  // 注：Supabase JS client 无事务，单用户场景并发概率极低；如需严格原子性应改为 Postgres RPC。
+
+  // 先解析卖出 execution 对应的买入 execution（用于稍后恢复份额）
+  let buyExecIdToRestore: string | undefined;
   if (exec.action === 'sell' && exec.transaction_id) {
-    let buyExecId: string | undefined;
     try {
       const { data: sellTx } = await (supabase
         .from('transactions') as any)
         .select('grid_execution_id')
         .eq('id', exec.transaction_id)
         .maybeSingle();
-      buyExecId = sellTx?.grid_execution_id;
+      buyExecIdToRestore = sellTx?.grid_execution_id;
     } catch (e) {
       console.warn('查询卖出的 grid_execution_id 失败，跳过份额恢复:', e);
     }
-    if (buyExecId) {
-      const { data: buyExec } = await (supabase
-        .from('grid_executions') as any)
-        .select('remaining_shares')
-        .eq('id', buyExecId)
-        .maybeSingle();
-      if (buyExec) {
-        const sellShares = exec.executed_shares ?? 0;
-        const currentRemaining = buyExec.remaining_shares ?? 0;
-        const restoredRemaining = Math.round((currentRemaining + sellShares) * SHARE_PRECISION) / SHARE_PRECISION;
-        await (supabase.from('grid_executions') as any)
-          .update({ remaining_shares: restoredRemaining })
-          .eq('id', buyExecId);
-      }
-    }
   }
 
+  // ① 删除关联交易记录
   if (exec.transaction_id) {
     const { error: txError } = await supabase.from('transactions').delete().eq('id', exec.transaction_id);
     if (txError) throw new Error(`删除关联交易失败: ${txError.message}`);
   }
 
+  // ② 标记 execution 取消并清空 transaction_id
   const { error } = await (supabase
     .from('grid_executions') as any)
     .update({ status: 'cancelled', transaction_id: null })
     .eq('id', executionId);
   if (error) throw new Error(`取消网格执行失败: ${error.message}`);
+
+  // ③ 最后恢复买入 execution 的 remaining_shares（幂等保守的收尾步骤）
+  //    恢复后不得超过原始买入份额 executed_shares，防止重复恢复导致虚增。
+  if (buyExecIdToRestore) {
+    try {
+      const { data: buyExec } = await (supabase
+        .from('grid_executions') as any)
+        .select('remaining_shares, executed_shares')
+        .eq('id', buyExecIdToRestore)
+        .maybeSingle();
+      if (buyExec) {
+        const sellShares = exec.executed_shares ?? 0;
+        const currentRemaining = buyExec.remaining_shares ?? 0;
+        const cap = buyExec.executed_shares ?? Number.POSITIVE_INFINITY;
+        const restoredRemaining = Math.min(
+          cap,
+          Math.round((currentRemaining + sellShares) * SHARE_PRECISION) / SHARE_PRECISION
+        );
+        const { error: restoreError } = await (supabase.from('grid_executions') as any)
+          .update({ remaining_shares: restoredRemaining })
+          .eq('id', buyExecIdToRestore);
+        if (restoreError) {
+          console.warn('恢复买入 remaining_shares 失败（卖出已取消，份额偏保守）:', restoreError.message);
+        }
+      }
+    } catch (e) {
+      console.warn('恢复买入 remaining_shares 异常（卖出已取消，份额偏保守）:', e);
+    }
+  }
 }
 
 // ============================================

@@ -5,7 +5,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { fetchFundNav, fetchFundHistory } from './fundApi';
+import { fetchFundHistory } from './fundApi';
 import { formatLocalDate } from '../utils/csv';
 import { createAlert } from './alertService';
 import type { Holding, Transaction } from '../types';
@@ -52,17 +52,119 @@ export interface RealizedLot {
 }
 
 // ============================================
+// 卖出匹配核心（单一可信实现）
+// ============================================
+//
+// 匹配优先级：
+//   1. lot_id 精确匹配（手动按批次卖出 → sell.lotId 指向买入批次 id）
+//   2. gridExecutionId 精确匹配（网格交易）
+//   3. 成本升序 fallback（无任何精确引用的卖出）
+//
+// 通过回调 onMatch 把每次扣减交给调用方记账（持仓派生 / 已实现盈亏 / 删除校验等），
+// 避免在多处重复实现匹配逻辑导致分歧。
+
+export interface MatchableLot {
+  id: string;
+  fundCode: string;
+  remainingShares: number;
+  cost: number;
+  isPending?: boolean;
+  gridExecutionId?: string;
+}
+
+export interface MatchableSell {
+  fundCode: string;
+  shares: number;
+  lotId?: string;
+  gridExecutionId?: string;
+}
+
+export function matchSellAgainstLots<T extends MatchableLot>(
+  lots: T[],
+  sell: MatchableSell,
+  onMatch?: (lot: T, sellFromLot: number) => void
+): number {
+  if (sell.shares <= 0) return 0;
+  let remainingToSell = sell.shares;
+
+  const deductFrom = (candidates: T[]) => {
+    for (const lot of candidates) {
+      if (remainingToSell <= 0) break;
+      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+      if (sellFromLot <= 0) continue;
+      lot.remainingShares -= sellFromLot;
+      remainingToSell -= sellFromLot;
+      onMatch?.(lot, sellFromLot);
+    }
+  };
+
+  const eligible = () =>
+    lots.filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending);
+
+  // 1. lot_id 精确匹配
+  if (sell.lotId) {
+    deductFrom(eligible().filter(l => l.id === sell.lotId));
+  }
+
+  // 2. gridExecutionId 精确匹配
+  if (remainingToSell > 0 && sell.gridExecutionId) {
+    deductFrom(
+      eligible()
+        .filter(l => l.gridExecutionId === sell.gridExecutionId)
+        .sort((a, b) => a.cost - b.cost)
+    );
+  }
+
+  // 3. 成本升序 fallback
+  if (remainingToSell > 0) {
+    deductFrom(eligible().sort((a, b) => a.cost - b.cost));
+  }
+
+  return remainingToSell;
+}
+
+/**
+ * 手续费分摊后的单批次盈亏计算（统一公式，被已实现盈亏与批次溯源复用）
+ * cost = 份额×买入净值 + 买入费按份额比例分摊
+ * revenue = 份额×卖出净值 − 卖出费按份额比例分摊
+ */
+export function calcLotProfit(params: {
+  soldShares: number;
+  buyNav: number;
+  sellNav: number;
+  buyFee?: number;
+  buyTotalShares?: number;
+  sellFee?: number;
+  sellTotalShares?: number;
+}): { cost: number; revenue: number; profit: number; profitRate: number } {
+  const { soldShares, buyNav, sellNav, buyFee = 0, buyTotalShares, sellFee = 0, sellTotalShares } = params;
+  const buyFeeShare = buyTotalShares && buyTotalShares > 0 ? (buyFee * soldShares) / buyTotalShares : 0;
+  const sellFeeShare = sellTotalShares && sellTotalShares > 0 ? (sellFee * soldShares) / sellTotalShares : 0;
+  const cost = soldShares * buyNav + buyFeeShare;
+  const revenue = soldShares * sellNav - sellFeeShare;
+  const profit = revenue - cost;
+  const profitRate = cost > 0 ? profit / cost : 0;
+  return { cost, revenue, profit, profitRate };
+}
+
+function sortByDateThenCreated(a: Transaction, b: Transaction): number {
+  const d = a.date.localeCompare(b.date);
+  if (d !== 0) return d;
+  return (a.createdAt || '').localeCompare(b.createdAt || '');
+}
+
+// ============================================
 // 批次派生：从交易记录派生当前持仓批次
 // ============================================
 
 export function deriveLots(transactions: Transaction[]): Lot[] {
   const buyTxs = transactions
     .filter(t => t.type === 'buy')
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(sortByDateThenCreated);
 
   const sellTxs = transactions
     .filter(t => t.type === 'sell' && t.status === 'completed')
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(sortByDateThenCreated);
 
   // 创建买入批次（包含在途买入）
   const lots: Lot[] = buyTxs.map(tx => ({
@@ -78,38 +180,14 @@ export function deriveLots(transactions: Transaction[]): Lot[] {
     gridExecutionId: tx.gridExecutionId,
   }));
 
-  // 匹配卖出：优先按 gridExecutionId 精确匹配，fallback 按成本升序
+  // 匹配卖出：lot_id 精确 → gridExecutionId 精确 → 成本升序
   for (const sell of sellTxs) {
-    if (sell.shares <= 0) continue;
-    let remainingToSell = sell.shares;
-
-    // 1. 优先精确匹配：如果 sell 指定了 gridExecutionId，只卖该 lot
-    if (sell.gridExecutionId) {
-      const targetLots = lots
-        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending && l.gridExecutionId === sell.gridExecutionId)
-        .sort((a, b) => a.cost - b.cost);
-
-      for (const lot of targetLots) {
-        if (remainingToSell <= 0) break;
-        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-        lot.remainingShares -= sellFromLot;
-        remainingToSell -= sellFromLot;
-      }
-    }
-
-    // 2. Fallback：剩余部分按成本升序匹配（手动交易或无 gridExecutionId 的场景）
-    if (remainingToSell > 0) {
-      const fundLots = lots
-        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending)
-        .sort((a, b) => a.cost - b.cost);
-
-      for (const lot of fundLots) {
-        if (remainingToSell <= 0) break;
-        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-        lot.remainingShares -= sellFromLot;
-        remainingToSell -= sellFromLot;
-      }
-    }
+    matchSellAgainstLots(lots, {
+      fundCode: sell.fundCode,
+      shares: sell.shares,
+      lotId: sell.lotId,
+      gridExecutionId: sell.gridExecutionId,
+    });
   }
 
   // 返回所有批次（包含在途）
@@ -123,56 +201,67 @@ export function deriveLots(transactions: Transaction[]): Lot[] {
 export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
   const buyTxs = transactions
     .filter(t => t.type === 'buy' && t.status === 'completed')
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(sortByDateThenCreated);
 
   const sellTxs = transactions
     .filter(t => t.type === 'sell' && t.status === 'completed')
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(sortByDateThenCreated);
 
-  const lots: Lot[] = buyTxs.map(tx => ({
+  // 携带原始买入信息用于盈亏与手续费分摊
+  interface RealizingLot extends MatchableLot {
+    fundName: string;
+    buyNav: number;
+    buyDate: string;
+    buyFee: number;
+    buyTotalShares: number;
+  }
+
+  const lots: RealizingLot[] = buyTxs.map(tx => ({
     id: tx.id,
     fundCode: tx.fundCode,
     fundName: tx.fundName,
-    shares: tx.shares,
     remainingShares: tx.shares,
     cost: tx.price,
-    date: tx.date,
-    isPending: false,
     gridExecutionId: tx.gridExecutionId,
+    buyNav: tx.price,
+    buyDate: tx.date,
+    buyFee: tx.fee || 0,
+    buyTotalShares: tx.shares,
   }));
 
   const realizedLots: RealizedLot[] = [];
 
   for (const sell of sellTxs) {
-    if (sell.shares <= 0) continue;
-    let remainingToSell = sell.shares;
-
-    // 优先精确匹配
-    if (sell.gridExecutionId) {
-      const targetLots = lots
-        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && !l.isPending && l.gridExecutionId === sell.gridExecutionId)
-        .sort((a, b) => a.cost - b.cost);
-
-      for (const lot of targetLots) {
-        if (remainingToSell <= 0) break;
-        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-        lot.remainingShares -= sellFromLot;
-        remainingToSell -= sellFromLot;
-
-        const cost = sellFromLot * lot.cost;
-        const revenue = sellFromLot * sell.price;
-        const profit = revenue - cost;
-        const profitRate = cost > 0 ? profit / cost : 0;
-        const holdingDays = Math.max(0, Math.round((new Date(sell.date).getTime() - new Date(lot.date).getTime()) / (1000 * 60 * 60 * 24)));
-
+    matchSellAgainstLots(
+      lots,
+      {
+        fundCode: sell.fundCode,
+        shares: sell.shares,
+        lotId: sell.lotId,
+        gridExecutionId: sell.gridExecutionId,
+      },
+      (lot, sellFromLot) => {
+        const { cost, revenue, profit, profitRate } = calcLotProfit({
+          soldShares: sellFromLot,
+          buyNav: lot.buyNav,
+          sellNav: sell.price,
+          buyFee: lot.buyFee,
+          buyTotalShares: lot.buyTotalShares,
+          sellFee: sell.fee,
+          sellTotalShares: sell.shares,
+        });
+        const holdingDays = Math.max(
+          0,
+          Math.round((new Date(sell.date).getTime() - new Date(lot.buyDate).getTime()) / (1000 * 60 * 60 * 24))
+        );
         realizedLots.push({
           id: lot.id,
           fundCode: lot.fundCode,
           fundName: lot.fundName,
-          buyDate: lot.date,
+          buyDate: lot.buyDate,
           sellDate: sell.date,
           shares: sellFromLot,
-          buyNav: lot.cost,
+          buyNav: lot.buyNav,
           sellNav: sell.price,
           cost,
           revenue,
@@ -181,46 +270,7 @@ export function deriveRealizedLots(transactions: Transaction[]): RealizedLot[] {
           holdingDays,
         });
       }
-    }
-
-    // Fallback
-    if (remainingToSell > 0) {
-      const fundLots = lots
-        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
-        .sort((a, b) => a.cost - b.cost);
-
-      for (const lot of fundLots) {
-        if (remainingToSell <= 0) break;
-        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-        lot.remainingShares -= sellFromLot;
-        remainingToSell -= sellFromLot;
-
-        // 每次卖出都记录已实现盈亏（包括部分卖出）
-        const sellDate = new Date(sell.date);
-        const buyDate = new Date(lot.date);
-        const holdingDays = Math.max(0, Math.round((sellDate.getTime() - buyDate.getTime()) / (1000 * 60 * 60 * 24)));
-        const cost = sellFromLot * lot.cost;
-        const revenue = sellFromLot * sell.price;
-        const profit = revenue - cost;
-        const profitRate = cost > 0 ? profit / cost : 0;
-
-        realizedLots.push({
-          id: lot.id,
-          fundCode: lot.fundCode,
-          fundName: lot.fundName,
-          buyDate: lot.date,
-          sellDate: sell.date,
-          shares: sellFromLot,
-          buyNav: lot.cost,
-          sellNav: sell.price,
-          cost,
-          revenue,
-          profit,
-          profitRate,
-          holdingDays,
-        });
-      }
-    }
+    );
   }
 
   // 按卖出日期倒序
@@ -282,47 +332,25 @@ export function matchSellLots(
   lots: Lot[],
   fundCode: string,
   sellShares: number,
-  gridExecutionId?: string
+  gridExecutionId?: string,
+  lotId?: string
 ): SellMatchResult {
   // 使用副本避免修改输入数组
-  let fundLots = lots
+  const fundLots = lots
     .filter(l => l.fundCode === fundCode && l.remainingShares > 0)
     .map(l => ({ ...l }));
 
-  let remainingToSell = sellShares;
   const lotsUsed: SellMatchResult['lotsUsed'] = [];
 
-  // 1. 优先精确匹配
-  if (gridExecutionId) {
-    const targetLots = fundLots
-      .filter(l => l.gridExecutionId === gridExecutionId)
-      .sort((a, b) => a.cost - b.cost);
-
-    for (const lot of targetLots) {
-      if (remainingToSell <= 0) break;
-      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
+  const remainingShares = matchSellAgainstLots(
+    fundLots,
+    { fundCode, shares: sellShares, lotId, gridExecutionId },
+    (lot, sellFromLot) => {
       lotsUsed.push({ lotId: lot.id, shares: sellFromLot, cost: lot.cost });
-      lot.remainingShares -= sellFromLot;
-      remainingToSell -= sellFromLot;
     }
-  }
+  );
 
-  // 2. Fallback
-  if (remainingToSell > 0) {
-    const fallbackLots = fundLots
-      .filter(l => l.remainingShares > 0)
-      .sort((a, b) => a.cost - b.cost);
-
-    for (const lot of fallbackLots) {
-      if (remainingToSell <= 0) break;
-      const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-      lotsUsed.push({ lotId: lot.id, shares: sellFromLot, cost: lot.cost });
-      lot.remainingShares -= sellFromLot;
-      remainingToSell -= sellFromLot;
-    }
-  }
-
-  return { lotsUsed, remainingShares: remainingToSell };
+  return { lotsUsed, remainingShares };
 }
 
 // ============================================
@@ -354,13 +382,13 @@ export function canDeleteTransaction(
   // 买入交易：按日期排序（与 deriveLots 保持一致）
   const buyTxs = transactions
     .filter(t => t.type === 'buy' && t.status === 'completed')
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(sortByDateThenCreated);
 
   const sellTxs = transactions
     .filter(t => t.type === 'sell' && t.status === 'completed')
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(sortByDateThenCreated);
 
-  // 模拟批次派生（与 deriveLots 字段一致，支持 gridExecutionId 匹配）
+  // 模拟批次派生（与 deriveLots 一致：lot_id → gridExecutionId → 成本升序）
   const lots = buyTxs.map(b => ({
     id: b.id,
     fundCode: b.fundCode,
@@ -370,37 +398,13 @@ export function canDeleteTransaction(
     gridExecutionId: b.gridExecutionId,
   }));
 
-  // 模拟卖出匹配（与 deriveLots 保持一致：优先 gridExecutionId，再成本升序）
   for (const sell of sellTxs) {
-    let remainingToSell = sell.shares;
-
-    // 1. 优先 gridExecutionId 精确匹配
-    if (sell.gridExecutionId) {
-      const targetLots = lots
-        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0 && l.gridExecutionId === sell.gridExecutionId)
-        .sort((a, b) => a.cost - b.cost);
-
-      for (const lot of targetLots) {
-        if (remainingToSell <= 0) break;
-        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-        lot.remainingShares -= sellFromLot;
-        remainingToSell -= sellFromLot;
-      }
-    }
-
-    // 2. Fallback 按成本升序
-    if (remainingToSell > 0) {
-      const fundLots = lots
-        .filter(l => l.fundCode === sell.fundCode && l.remainingShares > 0)
-        .sort((a, b) => a.cost - b.cost);
-
-      for (const lot of fundLots) {
-        if (remainingToSell <= 0) break;
-        const sellFromLot = Math.min(lot.remainingShares, remainingToSell);
-        lot.remainingShares -= sellFromLot;
-        remainingToSell -= sellFromLot;
-      }
-    }
+    matchSellAgainstLots(lots, {
+      fundCode: sell.fundCode,
+      shares: sell.shares,
+      lotId: sell.lotId,
+      gridExecutionId: sell.gridExecutionId,
+    });
   }
 
   // 检查目标买入批次是否被卖出过
@@ -550,11 +554,14 @@ export async function addTransactionWithHoldingUpdate(
       if (transaction.gridExecutionId) {
         payload.grid_execution_id = transaction.gridExecutionId;
       }
+      if (transaction.lotId) {
+        payload.lot_id = transaction.lotId;
+      }
     }
     return payload;
   }
 
-  // 先尝试包含可选列（source / confirm_date / grid_execution_id）
+  // 先尝试包含可选列（source / confirm_date / grid_execution_id / lot_id）
   // 若失败（schema cache 未刷新），回退到仅基础列
   for (let attempt = 0; attempt < 2; attempt++) {
     const withOptional = attempt === 0;
@@ -606,9 +613,72 @@ export async function removeTransactionWithHoldingUpdate(
 
   if (!transaction) return;
 
+  // 修复 K：删除网格交易时同步 grid_executions，避免持仓派生与网格状态永久脱节。
+  // 通用删除入口此前不感知 grid_execution_id，删网格卖出会让批次份额"复活"而网格 remaining_shares 不回补。
+  await syncGridOnTransactionDelete(transaction);
+
   const { error } = await supabase.from('transactions').delete().eq('id', transactionId);
   if (error) {
     throw new Error(`删除交易失败: ${error.message}`);
+  }
+}
+
+/**
+ * 删除某笔网格交易前，同步对应的 grid_executions：
+ * - 删网格卖出：回补买入 execution 的 remaining_shares（封顶 executed_shares），并将该卖出 execution 标记 cancelled
+ * - 删网格买入：若已被卖出引用则阻止删除；否则将该买入 execution 标记 cancelled 并清空 transaction_id
+ * 非网格交易直接返回。
+ */
+async function syncGridOnTransactionDelete(transaction: any): Promise<void> {
+  // 找到 transaction_id 指向该交易的 grid_executions 记录
+  const { data: execData } = await (supabase
+    .from('grid_executions') as any)
+    .select('*')
+    .eq('transaction_id', transaction.id)
+    .maybeSingle();
+  const exec = execData as any;
+
+  // 删网格卖出交易：回补买入 execution 的剩余份额
+  if (transaction.type === 'sell') {
+    const buyExecId = transaction.grid_execution_id;
+    if (buyExecId) {
+      const { data: buyExec } = await (supabase
+        .from('grid_executions') as any)
+        .select('remaining_shares, executed_shares')
+        .eq('id', buyExecId)
+        .maybeSingle();
+      if (buyExec) {
+        const restoreShares = exec?.executed_shares ?? transaction.shares ?? 0;
+        const currentRemaining = buyExec.remaining_shares ?? 0;
+        const cap = buyExec.executed_shares ?? Number.POSITIVE_INFINITY;
+        const restored = Math.min(cap, Math.round((currentRemaining + restoreShares) * 10000) / 10000);
+        await (supabase.from('grid_executions') as any)
+          .update({ remaining_shares: restored })
+          .eq('id', buyExecId);
+      }
+    }
+    if (exec && exec.action === 'sell') {
+      await (supabase.from('grid_executions') as any)
+        .update({ status: 'cancelled', transaction_id: null })
+        .eq('id', exec.id);
+    }
+    return;
+  }
+
+  // 删网格买入交易：若已被卖出引用则阻止
+  if (transaction.type === 'buy' && exec && exec.action === 'buy') {
+    const { data: sellTxs } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('grid_execution_id', exec.id)
+      .eq('type', 'sell')
+      .limit(1);
+    if (sellTxs && sellTxs.length > 0) {
+      throw new Error('该网格买入已被卖出引用，无法删除。请先删除对应的卖出记录。');
+    }
+    await (supabase.from('grid_executions') as any)
+      .update({ status: 'cancelled', transaction_id: null })
+      .eq('id', exec.id);
   }
 }
 
@@ -694,19 +764,9 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
         }
       }
 
-      // 无匹配的确认日降级到最新净值
-      const unmatched = sortedDates.filter(d => !navCache.has(`${code}_${d}`));
-      if (unmatched.length > 0) {
-        const navData = await fetchFundNav(code);
-        if (navData && navData.nav > 0) {
-          for (const d of unmatched) {
-            navCache.set(`${code}_${d}`, {
-              nav: navData.nav,
-              navDate: navData.navDate || today,
-            });
-          }
-        }
-      }
+      // 修复 #3：取不到确认日的真实净值时，不再降级到「最新净值」凑数成交。
+      // 用错误净值确认会算错份额/金额。此处留空，由后续逐笔循环按确认日是否到期
+      // 决定「保持 pending 静默等待」或「写告警」。
     } catch (err) {
       errors.push(`${code}: 净值获取失败 — ${err instanceof Error ? err.message : '未知错误'}`);
     }
@@ -720,14 +780,26 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
       const cacheKey = `${transaction.fund_code}_${confirmDate}`;
       const navInfo = navCache.get(cacheKey);
       if (!navInfo) {
-        await createAlert({
-          transactionId: transaction.id,
-          fundCode: transaction.fund_code,
-          confirmDate,
-          reason: 'no_nav_data',
-          detail: `无法获取 ${transaction.fund_code} 在 ${confirmDate} 的净值`,
-        });
-        errors.push(`${transaction.fund_code}: 无法获取净值`);
+        // 修复 #3：取不到确认日真实净值时不降级成交。
+        // 确认日尚未到期（未来日期）→ 正常等待，静默保持 pending；
+        // 确认日已过且超过阈值仍无净值 → 写告警提示人工处理。
+        const todayStr = formatLocalDate(new Date());
+        const confirmObj = new Date(confirmDate);
+        const isPast = !isNaN(confirmObj.getTime()) && confirmDate < todayStr;
+        if (isPast) {
+          const daysSinceConfirm = Math.floor((Date.now() - confirmObj.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysSinceConfirm > PENDING_ALERT_DAYS_THRESHOLD) {
+            await createAlert({
+              transactionId: transaction.id,
+              fundCode: transaction.fund_code,
+              confirmDate,
+              reason: 'no_nav_data',
+              detail: `无法获取 ${transaction.fund_code} 在 ${confirmDate} 的净值（已超过 ${PENDING_ALERT_DAYS_THRESHOLD} 天）`,
+            });
+            errors.push(`${transaction.fund_code}: 无法获取净值`);
+          }
+        }
+        // 保持 pending，等待真实净值
         continue;
       }
 
@@ -782,15 +854,33 @@ export async function processPendingTransactions(): Promise<ProcessPendingResult
         throw new Error(`计算结果无效: shares=${shares}, amount=${amount}`);
       }
 
+      const roundedShares = Math.round(shares * 10000) / 10000;
+      const roundedAmount = Math.round(amount * 100) / 100;
+
       const { error: updateError } = await (supabase.from('transactions') as any).update({
         nav: tradePrice,
-        shares: Math.round(shares * 10000) / 10000,
-        amount: Math.round(amount * 100) / 100,
+        shares: roundedShares,
+        amount: roundedAmount,
         status: 'completed',
       }).eq('id', transaction.id);
 
       if (updateError) {
         throw new Error(`更新失败: ${updateError.message}`);
+      }
+
+      // 修复 #6：网格买入在途确认后，把真实成交净值/份额回填到 grid_executions，
+      // 避免网格的 remaining_shares / capital_deployed 永久停留在下单时的估值。
+      if (transaction.type === 'buy' && transaction.grid_execution_id) {
+        try {
+          await (supabase.from('grid_executions') as any).update({
+            executed_nav: tradePrice,
+            executed_amount: roundedAmount,
+            executed_shares: roundedShares,
+            remaining_shares: roundedShares,
+          }).eq('id', transaction.grid_execution_id);
+        } catch (e) {
+          console.warn(`回填 grid_execution 成交净值失败: ${e}`);
+        }
       }
 
       processedCount++;

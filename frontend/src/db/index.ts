@@ -151,40 +151,43 @@ export async function importDatabase(jsonString: string): Promise<void> {
   const gridExecutions = Array.isArray(obj.grid_executions) ? obj.grid_executions : [];
   const favoriteFunds = Array.isArray(obj.favorite_funds) ? obj.favorite_funds : [];
 
-  // 先 INSERT 再 DELETE，防止数据丢失
-  if (holdings.length) {
-    const { error: insErr } = await supabase.from('holdings').insert(holdings as any);
-    if (!insErr) {
-      const ids = (holdings as any[]).map((h: any) => h.id).filter(Boolean);
-      if (ids.length) await supabase.from('holdings').delete().in('id', ids);
-    }
+  // 修复 J：先清空旧数据，再插入导入数据。
+  // 旧实现「插入后又按导入数据的 id 删除」是逻辑反转，会把刚导入的数据删光（数据丢失）。
+  // Supabase JS client 无事务；按依赖顺序操作以尽量保证一致性：
+  //   ① 解除 FK 循环引用（transactions.grid_execution_id ↔ grid_executions.transaction_id）
+  //   ② 按子→父顺序清空旧数据
+  //   ③ 按父→子顺序插入导入数据
+  const txIds = await getAllIds('transactions');
+  const geIds = await getAllIds('grid_executions');
+  for (const id of txIds) {
+    await (supabase.from('transactions') as any).update({ grid_execution_id: null, lot_id: null }).eq('id', id);
   }
-  if (transactions.length) {
-    const { error: insErr } = await supabase.from('transactions').insert(transactions as any);
-    if (!insErr) {
-      const ids = (transactions as any[]).map((t: any) => t.id).filter(Boolean);
-      if (ids.length) await supabase.from('transactions').delete().in('id', ids);
-    }
+  for (const id of geIds) {
+    await (supabase.from('grid_executions') as any).update({ transaction_id: null }).eq('id', id);
   }
-  if (gridStrategies.length) {
-    const { error: insErr } = await supabase.from('grid_strategies').insert(gridStrategies as any);
-    if (!insErr) {
-      const ids = (gridStrategies as any[]).map((s: any) => s.id).filter(Boolean);
-      if (ids.length) await supabase.from('grid_strategies').delete().in('id', ids);
-    }
+
+  // ② 清空旧数据（子表在前）
+  const clearOrder = ['grid_executions', 'transactions', 'grid_strategies', 'holdings', 'favorite_funds'];
+  for (const table of clearOrder) {
+    const ids = await getAllIds(table);
+    if (ids.length > 0) await deleteByIds(table, ids);
   }
-  if (gridExecutions.length) {
-    const { error: insErr } = await supabase.from('grid_executions').insert(gridExecutions as any);
-    if (!insErr) {
-      const ids = (gridExecutions as any[]).map((e: any) => e.id).filter(Boolean);
-      if (ids.length) await supabase.from('grid_executions').delete().in('id', ids);
-    }
+
+  // ③ 插入导入数据（父表在前；strategies/buy executions 先于引用它们的记录）
+  const insertSteps: Array<{ table: string; rows: unknown[] }> = [
+    { table: 'favorite_funds', rows: favoriteFunds },
+    { table: 'holdings', rows: holdings },
+    { table: 'grid_strategies', rows: gridStrategies },
+    { table: 'transactions', rows: transactions },
+    { table: 'grid_executions', rows: gridExecutions },
+  ];
+  const errors: string[] = [];
+  for (const step of insertSteps) {
+    if (step.rows.length === 0) continue;
+    const { error } = await supabase.from(step.table as any).insert(step.rows as any);
+    if (error) errors.push(`导入 ${step.table} 失败: ${error.message}`);
   }
-  if (favoriteFunds.length) {
-    const { error: insErr } = await supabase.from('favorite_funds').insert(favoriteFunds as any);
-    if (!insErr) {
-      const ids = (favoriteFunds as any[]).map((f: any) => f.id).filter(Boolean);
-      if (ids.length) await supabase.from('favorite_funds').delete().in('id', ids);
-    }
+  if (errors.length > 0) {
+    throw new Error(`导入部分失败:\n${errors.join('\n')}`);
   }
 }

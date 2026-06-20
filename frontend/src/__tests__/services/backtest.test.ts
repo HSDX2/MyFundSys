@@ -91,6 +91,47 @@ describe('backtest', () => {
       expect(result.equityCurve.length).toBe(priceData.length);
     });
 
+    it('年化收益基于真实日历跨度，不随数据点密度变化（修复 E）', async () => {
+      // 不触发任何买卖规则的策略 → totalReturn=0 → annualized=0，
+      // 重点验证 years 用首尾日期跨度而非 length/252，两种密度结果一致。
+      const noopStrategy: Strategy = {
+        id: 's_noop', name: 'noop', description: '', type: 'custom',
+        rules: [], createdAt: '2024-01-01', updatedAt: '2024-01-01',
+      };
+      const mk = (dates: string[]) => dates.map(d => ({ date: d, price: 1.0, pe: 15, pb: 1.5 }));
+
+      // 同样一年跨度，一个 2 点、一个稠密 13 点
+      const sparse = mk(['2024-01-01', '2025-01-01']);
+      const dense = mk(['2024-01-01','2024-02-01','2024-03-01','2024-04-01','2024-05-01','2024-06-01','2024-07-01','2024-08-01','2024-09-01','2024-10-01','2024-11-01','2024-12-01','2025-01-01']);
+
+      const base = { strategy: noopStrategy, fundCode: '000001', startDate: '2024-01-01', endDate: '2025-01-01', initialCapital: 10000 };
+      const r1 = await runBacktest({ ...base, priceData: sparse });
+      const r2 = await runBacktest({ ...base, priceData: dense });
+
+      // totalReturn 都为 0，年化也都为 0；关键是两者相等（旧实现会因 length 不同而不同）
+      expect(r1.annualizedReturn).toBeCloseTo(r2.annualizedReturn, 10);
+      expect(r1.annualizedReturn).toBeCloseTo(0, 10);
+    });
+
+    it('一年跨度的正收益年化≈总收益（修复 E）', async () => {
+      // 买入并持有：净值翻倍，跨度恰一年，年化应≈总收益
+      const buyHold: Strategy = {
+        id: 's_bh', name: 'bh', description: '', type: 'custom',
+        rules: [{ condition: 'percentile < 100', action: 'buy', params: { ratio: 1 } }],
+        createdAt: '2024-01-01', updatedAt: '2024-01-01',
+      };
+      const priceData = [
+        { date: '2024-01-01', price: 1.0, pe: 10, pb: 1.0 },
+        { date: '2025-01-01', price: 2.0, pe: 10, pb: 1.0 },
+      ];
+      const result = await runBacktest({
+        strategy: buyHold, fundCode: '000001', startDate: '2024-01-01', endDate: '2025-01-01',
+        initialCapital: 10000, priceData,
+      });
+      // 一年跨度，年化 ≈ totalReturn（误差因 365.25 天近似）
+      expect(result.annualizedReturn).toBeCloseTo(result.totalReturn, 1);
+    });
+
     it('定投策略回测', async () => {
       const monthlyStrategy: Strategy = {
         id: 's_002',

@@ -7,14 +7,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { removeTransactionWithHoldingUpdate, removeHoldingWithTransactions, deriveLots, summarizeHoldings } from '../services/navUpdateService';
+import { removeTransactionWithHoldingUpdate, removeHoldingWithTransactions, deriveLots, summarizeHoldings, addTransactionWithHoldingUpdate } from '../services/navUpdateService';
 import { batchFetchNav } from '../services/fundApi';
-import { fetchFundNav } from '../services/fundApi';
 import type { Holding, Transaction } from '../types';
 import type { Lot, RealizedLot } from '../services/navUpdateService';
-import type { Database } from '../types/database';
-
-type TransactionsInsert = Database['public']['Tables']['transactions']['Insert'];
 
 // ============================================
 // 同步状态 Hook
@@ -93,6 +89,7 @@ function mapTransaction(t: any): Transaction {
     status: t.status,
     source: t.source || 'manual',
     gridExecutionId: t.grid_execution_id,
+    lotId: t.lot_id,
     createdAt: t.created_at,
   };
 }
@@ -185,34 +182,10 @@ export function useTransactions() {
   }, [loadTransactions]);
 
   const saveTransaction = useCallback(async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
-    function buildPayload(includeSource: boolean): Record<string, unknown> {
-      const p: Record<string, unknown> = {
-        fund_code: transaction.fundCode,
-        fund_name: transaction.fundName,
-        type: transaction.type,
-        shares: transaction.shares,
-        nav: transaction.price,
-        amount: transaction.amount,
-        fee: transaction.fee || 0,
-        date: transaction.date,
-        status: transaction.status || 'completed',
-      };
-      if (includeSource && transaction.source && transaction.source !== 'manual') {
-        p.source = transaction.source;
-      }
-      return p;
-    }
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const { data, error } = await supabase.from('transactions').insert(buildPayload(attempt === 0) as any).select();
-      if (!error && data) {
-        return (data as any)?.[0]?.id;
-      }
-      if (error && attempt === 0 && error.message?.includes('Could not find') && error.message?.includes('schema cache')) {
-        continue;
-      }
-      throw new Error(`保存交易失败: ${error?.message || '未知错误'}`);
-    }
-    throw new Error('保存交易失败');
+    // 复用 navUpdateService 的写入路径，统一支持 source / confirm_date / grid_execution_id / lot_id，
+    // 并带 schema cache 回退逻辑。修复 #10：消除两套 insert 实现。
+    const { transactionId } = await addTransactionWithHoldingUpdate(transaction);
+    return transactionId;
   }, []);
 
   const removeTransaction = useCallback(async (id: string) => {

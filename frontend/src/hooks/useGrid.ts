@@ -225,8 +225,13 @@ export function useGridDetail(fundCode: string) {
         throw new Error('未找到买入记录，无法卖出');
       }
 
-      const buyShares = buyExec.executed_shares || 0;
+      // 修复 #5：用 remaining_shares（剩余份额）而非 executed_shares（原始买入份额），
+      // 否则部分卖出后再卖会超卖。
+      const buyShares = buyExec.remaining_shares ?? buyExec.executed_shares ?? 0;
       const { sellShares } = calculateSellShares(buyShares, gridLevel.profit_retention_pct);
+      if (sellShares <= 0) {
+        throw new Error('该格子可卖份额为 0');
+      }
 
       await executeGrid({
         strategyId: strategy.id,
@@ -261,8 +266,8 @@ export function useGridDetail(fundCode: string) {
     for (const gridType of GRID_TYPES) {
       for (const level of levelsByType[gridType] || []) {
         if (level.execution && !level.sellExecution) {
-          // 清仓时卖出全部买入份额，不留利润
-          const sellShares = level.execution.executed_shares || 0;
+          // 清仓时卖出剩余全部份额（修复 #5：用 remaining_shares 防超卖）
+          const sellShares = level.execution.remaining_shares ?? level.execution.executed_shares ?? 0;
           if (sellShares <= 0) continue;
 
           try {

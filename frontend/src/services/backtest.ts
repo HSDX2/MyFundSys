@@ -89,9 +89,14 @@ export async function runBacktest(params: BacktestParams): Promise<BacktestResul
   const finalValue = equityCurve[equityCurve.length - 1]?.value || 0;
   const totalReturn = initialCapital > 0 ? (finalValue - initialCapital) / initialCapital : 0;
 
-  // 计算年化收益率
-  const days = priceData.length;
-  const years = days / 252;
+  // 计算年化收益率（修复 E：用真实日历跨度，而非把数据点数当交易日数）
+  // priceData 可能非日频/有缺失，length/252 会系统性偏差；改用首尾日期实际间隔。
+  const firstDate = new Date(priceData[0].date);
+  const lastDate = new Date(priceData[priceData.length - 1].date);
+  const spanMs = lastDate.getTime() - firstDate.getTime();
+  const years = Number.isFinite(spanMs) && spanMs > 0
+    ? spanMs / (365.25 * 24 * 60 * 60 * 1000)
+    : 0;
   const annualizedReturn = totalReturn > -1 && years > 0
     ? Math.pow(1 + totalReturn, 1 / years) - 1
     : totalReturn;

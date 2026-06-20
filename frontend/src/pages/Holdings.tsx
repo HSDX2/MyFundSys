@@ -94,7 +94,7 @@ const Holdings: React.FC = () => {
       }
       const amount = sellShares * price;
 
-      // 创建卖出交易
+      // 创建卖出交易（修复 #1：lotId 精确指向被卖批次，派生时按批次扣减，UI 与底层一致）
       await saveTransaction({
         fundId: sellModal.lot!.fundCode,
         fundCode: sellModal.lot!.fundCode,
@@ -106,6 +106,7 @@ const Holdings: React.FC = () => {
         shares: sellShares,
         fee: 0,
         status: 'completed',
+        lotId: sellModal.lot!.id,
       });
 
       setSellModal({ lot: null, shares: '', loading: false, nav: null });

@@ -31,9 +31,11 @@ export function useRiskMetrics(pendingCount: number = 0, valuationPercentile?: n
 
     let valuationSignal: RiskMetrics['valuationSignal'] = null;
     if (valuationPercentile !== null && valuationPercentile !== undefined) {
-      if (valuationPercentile < 0.2) {
+      // 修复 #11：与 getValuationStatus 五档展示对齐
+      // <0.4（钻石坑/低估）→ 低估；0.4~0.6（合理）→ 合理；≥0.6（高估/危险）→ 高估
+      if (valuationPercentile < 0.4) {
         valuationSignal = '低估';
-      } else if (valuationPercentile <= 0.8) {
+      } else if (valuationPercentile < 0.6) {
         valuationSignal = '合理';
       } else {
         valuationSignal = '高估';

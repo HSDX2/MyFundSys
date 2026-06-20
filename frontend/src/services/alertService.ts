@@ -20,13 +20,27 @@ export async function createAlert(alert: {
   detail: string;
 }): Promise<void> {
   if (!isSupabaseConfigured()) return;
-  await (supabase.from('pending_alerts') as any).insert({
+  // 修复 #2：同一笔交易、同一原因去重，避免 processPendingTransactions 反复运行时告警膨胀。
+  // 依赖 pending_alerts (transaction_id, reason) 唯一约束 + upsert。
+  // 若约束尚未迁移（旧库），upsert 回退为普通 insert 并忽略冲突错误。
+  const row = {
     transaction_id: alert.transactionId,
     fund_code: alert.fundCode,
     confirm_date: alert.confirmDate,
     reason: alert.reason,
     detail: alert.detail,
+  };
+  const { error } = await (supabase.from('pending_alerts') as any).upsert(row, {
+    onConflict: 'transaction_id,reason',
+    ignoreDuplicates: true,
   });
+  // ignoreDuplicates 下重复行不会报错；仅当 upsert 因唯一约束缺失等原因失败时，
+  // 退回普通 insert（best-effort，不抛出阻塞主流程）。
+  if (error) {
+    try {
+      await (supabase.from('pending_alerts') as any).insert(row);
+    } catch { /* 忽略 */ }
+  }
 }
 
 export async function fetchAlerts(): Promise<PendingAlert[]> {
