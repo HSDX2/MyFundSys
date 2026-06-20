@@ -1,0 +1,32 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '17 3 * * *'  # 每天 UTC 03:00 左右触发一次（错开整点，降低被限流概率）
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Supabase REST
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          # 一次轻量查询 = SELECT id FROM transactions LIMIT 1
+          # 任意成功的 REST 请求即可让 Supabase 项目维持「活跃」状态，避免 7 天无活动被暂停
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${SUPABASE_URL}/rest/v1/transactions?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+
+          echo "HTTP status: ${status}"
+
+          if [ "${status}" = "200" ]; then
+            echo "✓ Supabase 保活成功"
+          else
+            echo "✗ Supabase 保活失败 (HTTP ${status})"
+            exit 1
+          fi
