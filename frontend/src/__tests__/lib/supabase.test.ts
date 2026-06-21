@@ -74,11 +74,11 @@ describe('supabase client', () => {
     );
   });
 
-  it('空环境变量时仍调用 createClient', async () => {
+  it('空环境变量时用占位值调用 createClient（避免 supabaseUrl is required）', async () => {
     vi.stubEnv('VITE_SUPABASE_URL', '');
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
     await import('../../lib/supabase');
-    expect(mockCreateClient).toHaveBeenCalledWith('', '');
+    expect(mockCreateClient).toHaveBeenCalledWith('http://localhost:54321', 'placeholder-anon-key');
   });
 });
 

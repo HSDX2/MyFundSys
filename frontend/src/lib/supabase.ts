@@ -20,9 +20,14 @@ if (supabaseKey && !supabaseKey.startsWith('eyJ')) {
 
 /**
  * Supabase 客户端实例
- * @description 用于数据库操作和实时订阅
+ * @description 用于数据库操作和实时订阅。
+ * 未配置（如测试/CI 无环境变量）时用占位 URL 构造，避免 createClient 抛
+ * "supabaseUrl is required"；真实读写均由 isSupabaseConfigured() 门控。
  */
-export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
+export const supabase = createClient<Database>(
+  supabaseUrl || 'http://localhost:54321',
+  supabaseKey || 'placeholder-anon-key'
+);
 
 /**
  * 检查 Supabase 是否已配置
