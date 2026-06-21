@@ -26,7 +26,8 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        channel: 'chrome',
+        // 本地默认用系统 Chrome；CI 设置 PLAYWRIGHT_CHANNEL=chromium → channel 留空，用 Playwright 自带 chromium
+        channel: process.env.PLAYWRIGHT_CHANNEL === 'chromium' ? undefined : (process.env.PLAYWRIGHT_CHANNEL || 'chrome'),
       },
     },
   ],

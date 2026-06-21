@@ -5,7 +5,7 @@
 
 # MyFundSys
 
-**Lot-level fund portfolio with NAV auto-reconciliation, dashboard cockpit, and grid trading** — every buy is tracked as an independent lot, sells match by lowest cost, pending trades auto-confirm, and grid strategies execute with full traceability.
+**Lot-level fund portfolio with NAV auto-reconciliation, dashboard cockpit, and grid trading** — every buy is tracked as an independent lot, sells match per-lot (explicit lot → grid execution → lowest cost), pending trades auto-confirm, and grid strategies execute with full traceability.
 
 [Live Demo](https://twmissingu.github.io/MyFundSys/) · [Architecture](#architecture) · [Quick Start](#quick-start)
 
@@ -18,7 +18,7 @@ Most fund tracking apps show you a single average cost per fund. MyFundSys track
 - **Portfolio Cockpit** — dashboard with action cards, risk dashboard (deployment rate, concentration, valuation signal), total asset trend
 - **Lot-based accounting** — each buy is an independent lot with its own cost basis
 - **Lot Lifecycle Traceability** — per-buy timeline showing partial sells, realized P&L, holding days, and remaining floating P&L
-- **Smart sell matching** — sells deduct from the lowest-cost lot first (cost-averaging efficient)
+- **Smart sell matching** — when selling a specific lot the exact lot is deducted; otherwise grid-execution match, then lowest-cost-first
 - **Pending trade auto-confirm** — T+1 trades auto-complete when NAV is published; failure alerts with manual NAV entry fallback
 - **Realized P&L tracking** — win rate, cumulative gains, holding days per lot
 - **Cloud sync** — Supabase PostgreSQL, multi-device sync
@@ -40,7 +40,7 @@ Frontend (React 18 + TypeScript)
 **Key design decisions:**
 - **Supabase is the single source of truth** — holdings are derived from transactions, not stored separately
 - **Lot derivation** (`navUpdateService.ts`) — `deriveLots()` builds lots from buy/sell transactions
-- **Sell matching** — lowest-cost-first (not FIFO), implemented in `matchSellLots()`
+- **Sell matching** — per-lot: explicit `lotId` → `gridExecutionId` → lowest-cost-first (not FIFO), unified in `matchSellAgainstLots()` (used by `deriveLots`/`deriveRealizedLots`/`matchSellLots`)
 - **Hash-based routing** — no react-router, Layout.tsx TabBar with 6 tabs
 
 ## Quick Start
@@ -97,8 +97,8 @@ npm install
 cp .env.example .env.local
 
 # 3. Run tests
-npm test                    # 511 tests, Vitest
-npm run test:e2e            # Playwright E2E
+npm test                    # 538 unit tests, Vitest
+TEST_PASSWORD=<app-password> npm run test:e2e   # 14 Playwright e2e (read-only smoke; needs dev server + Supabase)
 
 # 4. Build
 npm run build               # TypeScript compile + Vite build → dist/
@@ -124,13 +124,23 @@ npm run deploy              # Push to gh-pages branch
 ## Testing
 
 ```bash
-npm test                            # Run all tests
+npm test                            # Run all unit tests (Vitest)
 npm run test:watch                  # Watch mode
 npx vitest run src/__tests__/services/fundApi.test.ts   # Single file
-npm run test:e2e                    # Playwright E2E
+TEST_PASSWORD=<app-password> npm run test:e2e   # Playwright e2e (read-only smoke)
 ```
 
-**Framework**: Vitest 4 + @testing-library/react — **535 tests total** (Web 511 + Android 24)
+**Framework**: Vitest 4 + @testing-library/react — **538 web unit tests** + 24 Android tests.
+
+**E2E**: 14 Playwright specs (navigation / fund-search / holdings / critical-paths) — read-only
+smoke tests that verify page reachability and rendering. Mutating flows (transaction add/delete,
+pending confirmation, grid execute/sell, CSV import/export, JSON backup-restore) are covered at the
+service/unit layer to avoid polluting the shared Supabase test DB. Requires `TEST_PASSWORD` (= app
+password) and a reachable Supabase backend; Playwright auto-starts the dev server. In CI, set
+`PLAYWRIGHT_CHANNEL=chromium` to use the bundled browser.
+
+**CI**: `.github/workflows/test.yml` runs type-check + unit tests + e2e on push/PR (independent of
+`deploy.yml`, so a flaky e2e never blocks a release).
 
 ## Android App
 

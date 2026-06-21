@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-06-21
+
+### Fixed
+三轮全面业务逻辑审核，共修复 20 项漏洞：
+
+**卖出批次与盈亏（核心账务）**
+- **卖出按批次精确匹配** — `transactions` 新增 `lot_id` 列，手动按批次卖出时精确扣减指定批次；匹配优先级统一为 `lotId → gridExecutionId → 成本升序`，修复 UI「按批次卖出」与底层「成本最低匹配」的语义裂缝
+- **抽取单一卖出匹配函数** `matchSellAgainstLots` + `calcLotProfit`，消除 5 处重复实现的分歧
+- **已实现盈亏正确分摊手续费**（买入费计入成本、卖出费抵减收入；fee 值仍为 0）
+- **派生排序加 `createdAt` 二级键**，同日多笔交易匹配结果稳定
+
+**在途交易**
+- **取不到确认日真实净值时不再降级用最新净值凑数成交**，保持 pending 并按阈值写告警
+- **告警去重** — `pending_alerts` 新增 `(transaction_id, reason)` 唯一约束，`createAlert` 改 upsert，防止反复运行膨胀
+
+**网格交易**
+- 卖出/清仓基于 `remaining_shares` 而非 `executed_shares`，杜绝部分卖出后超卖
+- 在途网格买入确认后回填 `grid_executions` 的真实成交净值/份额
+- `executeGrid` 服务层校验卖出份额不超过剩余可卖份额
+- `cancelGridExecution` 重排序（删交易→标 cancelled→幂等恢复份额）+ 恢复封顶 `executed_shares`
+- **通用删除入口同步网格** — `removeTransactionWithHoldingUpdate` 删网格卖出回补份额、删被引用的网格买入则阻止
+
+**数据安全与一致性**
+- **`importDatabase` 修复逻辑反转** — 原实现「插入后又按导入数据 id 删除」会清空刚导入的数据；改为「删旧→插新」
+- `reorderFavorites` 改原子化 upsert + 错误检查；`addFavoriteFund` 分配 `sort_order`
+- CSV 导入去重 + 触发在途处理 + 失败明细；导出转义换行符；导入日期规范化 + 数值严格校验（拒绝 Infinity/尾部垃圾/负数）
+- 回测年化收益率改用真实日历跨度替代 `length / 252`
+- `useRiskMetrics` 估值信号阈值与 `getValuationStatus` 五档对齐
+
+### Changed
+- 单元测试 **538**（原 511）；e2e **9** 个 Playwright spec 全绿（修复 fund-search 失效的 3 个）
+- 迁移 `20260620000000`：`transactions.lot_id` 列 + `pending_alerts` 唯一约束（已部署生产库）
+
 ## [2.6.0] - 2026-05-14
 
 ### Added

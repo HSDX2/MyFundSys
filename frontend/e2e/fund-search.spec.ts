@@ -20,40 +20,41 @@ test.describe('基金搜索流程', () => {
   });
 
   test('搜索基金代码', async ({ page }) => {
-    await page.click('text=基金');
+    await page.click('.tab-bar >> text=基金');
     await page.waitForTimeout(300);
-    
-    const codeSearch = page.getByPlaceholder('输入基金代码');
+
+    const codeSearch = page.getByPlaceholder(/输入基金代码/);
     await codeSearch.fill('000001');
-    await page.waitForTimeout(500);
-    
+    await page.waitForTimeout(800);
+
     const results = page.locator('text=搜索结果');
-    await expect(results).toBeVisible({ timeout: 5000 });
+    await expect(results).toBeVisible({ timeout: 8000 });
   });
 
   test('搜索基金名称', async ({ page }) => {
-    await page.click('text=基金');
+    await page.click('.tab-bar >> text=基金');
     await page.waitForTimeout(300);
-    
-    const nameSearch = page.getByPlaceholder('输入基金名称');
+
+    const nameSearch = page.getByPlaceholder(/输入基金名称/);
     await nameSearch.fill('沪深');
-    await page.waitForTimeout(500);
-    
+    await page.waitForTimeout(800);
+
     const results = page.locator('text=搜索结果');
-    await expect(results).toBeVisible({ timeout: 5000 });
+    await expect(results).toBeVisible({ timeout: 8000 });
   });
 
   test('点击搜索结果进入详情页', async ({ page }) => {
-    await page.click('text=基金');
+    await page.click('.tab-bar >> text=基金');
     await page.waitForTimeout(300);
-    
-    const codeSearch = page.getByPlaceholder('输入基金代码');
+
+    const codeSearch = page.getByPlaceholder(/输入基金代码/);
     await codeSearch.fill('000001');
-    await page.waitForTimeout(500);
-    
+    await page.waitForTimeout(800);
+
     const firstResult = page.locator('[style*="cursor: pointer"]').first();
+    await expect(firstResult).toBeVisible({ timeout: 8000 });
     await firstResult.click();
-    
+
     await expect(page).toHaveURL(/#fund\/\d+/);
   });
 });
