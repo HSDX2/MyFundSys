@@ -62,8 +62,7 @@ async function fetchFromEastMoney(fundCode: string): Promise<FundApiData | null>
       };
     }
     return null;
-  } catch (err) {
-    console.error("fetchFromEastMoney failed:", err);
+  } catch {
     return null;
   }
 }
@@ -88,8 +87,7 @@ export async function fetchMarketValuation(): Promise<MarketValuationData> {
     }
 
     throw new Error('无法获取估值数据');
-  } catch (err) {
-    console.error("fetchMarketValuation failed:", err);
+  } catch {
     throw new Error('市场估值数据获取失败');
   }
 }
@@ -112,8 +110,7 @@ async function fetchFromLocalJson(): Promise<MarketValuationData | null> {
       };
     }
     return null;
-  } catch (err) {
-    console.error("fetchFromLocalJson failed:", err);
+  } catch {
     return null;
   }
 }
@@ -146,8 +143,7 @@ export async function searchFunds(keyword: string, mode: 'auto' | 'code' | 'name
         f.name.toLowerCase().includes(trimmed.toLowerCase())
       ).slice(0, 10);
     }
-  } catch (err) {
-    console.error("searchFunds failed:", err);
+  } catch {
     return [];
   }
 }
@@ -177,8 +173,7 @@ async function searchFromEastMoney(keyword: string): Promise<FundSearchResult[]>
     });
     if (error) throw error;
     return Array.isArray(data) ? data : [];
-  } catch (err) {
-    console.error("searchFromEastMoney failed:", err);
+  } catch {
     return [];
   }
 }
@@ -250,8 +245,7 @@ export async function batchRefreshFunds(codes: string[]): Promise<{
           const data = await fetchFundNav(code);
           if (data) success.push(code);
           else failed.push(code);
-        } catch (err) {
-    console.error("batchRefreshFunds failed:", err);
+        } catch {
           failed.push(code);
         }
       })
@@ -295,8 +289,7 @@ export async function fetchFundHistory(
     if (error) throw new Error(`获取历史净值失败: ${error.message || error}`);
     if (data) return data;
     throw new Error('历史净值数据为空');
-  } catch (err) {
-    console.error("fetchFundHistory failed:", err);
+  } catch {
     return [];
   }
 }
@@ -330,8 +323,7 @@ export async function getFundHistoryWithCache(
     const result = apiData.map(item => ({ date: item.date, nav: item.nav }));
     historyCache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
-  } catch (err) {
-    console.error("getFundHistoryWithCache failed:", err);
+  } catch {
     return [];
   }
 }

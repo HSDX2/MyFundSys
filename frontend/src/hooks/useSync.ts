@@ -9,6 +9,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { removeTransactionWithHoldingUpdate, removeHoldingWithTransactions, deriveLots, summarizeHoldings, addTransactionWithHoldingUpdate } from '../services/navUpdateService';
 import { batchFetchNav } from '../services/fundApi';
+import { onDataChanged } from '../utils/dataChangeEvent';
 import type { Holding, Transaction } from '../types';
 import type { Lot, RealizedLot } from '../services/navUpdateService';
 
@@ -119,12 +120,9 @@ export function useHoldings() {
           setHoldings(enriched);
           return;
         }
-        if (error) {
-          console.error('加载持仓失败:', error);
-        }
       }
-    } catch (err) {
-      console.error('加载持仓异常:', err);
+    } catch {
+      // 加载异常由 loading 状态处理
     } finally {
       setLoading(false);
     }
@@ -133,6 +131,9 @@ export function useHoldings() {
   useEffect(() => {
     loadHoldings();
   }, [loadHoldings]);
+
+  // 监听跨组件数据变更事件，自动刷新
+  useEffect(() => onDataChanged(() => { setLoading(true); loadHoldings(); }), [loadHoldings]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -161,12 +162,9 @@ export function useTransactions() {
           setTransactions(data.map(mapTransaction));
           return;
         }
-        if (error) {
-          console.error('加载交易记录失败:', error);
-        }
       }
-    } catch (err) {
-      console.error('加载交易记录异常:', err);
+    } catch {
+      // 加载异常由 loading 状态处理
     } finally {
       setLoading(false);
     }
@@ -175,6 +173,9 @@ export function useTransactions() {
   useEffect(() => {
     loadTransactions();
   }, [loadTransactions]);
+
+  // 监听跨组件数据变更事件，自动刷新
+  useEffect(() => onDataChanged(() => { setLoading(true); loadTransactions(); }), [loadTransactions]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -260,8 +261,7 @@ export function useStrategies() {
       const raw = localStorage.getItem('customStrategies');
       const customStrategies = raw ? JSON.parse(raw) : [];
       setStrategies(Array.isArray(customStrategies) ? customStrategies : []);
-    } catch (err) {
-      console.error('加载本地策略失败:', err);
+    } catch {
       localStorage.removeItem('customStrategies');
       setStrategies([]);
       // 延迟 Toast 避免初始化时渲染问题

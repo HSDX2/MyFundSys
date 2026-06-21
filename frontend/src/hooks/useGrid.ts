@@ -149,7 +149,6 @@ export function useGridDetail(fundCode: string) {
       setLevelsByType(levels);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败';
-      console.error('Grid detail load error:', err);
       setError(msg);
       setStrategy(null);
       setCurrentNav(null);

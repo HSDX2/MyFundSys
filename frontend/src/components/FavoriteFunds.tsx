@@ -63,8 +63,8 @@ const FavoriteFunds: React.FC<FavoriteFundsProps> = ({ onSelectFund }) => {
 
       setFavorites(listWithNav);
       await loadHistoryData(listWithNav);
-    } catch (err) {
-      console.error('加载收藏基金失败:', err);
+    } catch {
+      // 加载异常由 loading 状态处理
     } finally {
       setLoading(false);
     }

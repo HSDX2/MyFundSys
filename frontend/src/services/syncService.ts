@@ -210,11 +210,9 @@ export async function fetchAllDataFromSupabase() {
     ]);
 
     if (holdingsRes.error) {
-      console.error('查询持仓失败:', holdingsRes.error);
       return { holdings: [], transactions: [] };
     }
     if (transactionsRes.error) {
-      console.error('查询交易记录失败:', transactionsRes.error);
       return { holdings: [], transactions: [] };
     }
 
@@ -222,8 +220,7 @@ export async function fetchAllDataFromSupabase() {
     const transactions = (transactionsRes.data as DbTransaction[] || []).map(fromDbTransaction);
 
     return { holdings, transactions };
-  } catch (err) {
-    console.error('获取数据异常:', err);
+  } catch {
     return { holdings: [], transactions: [] };
   }
 }

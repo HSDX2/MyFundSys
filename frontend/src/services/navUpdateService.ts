@@ -8,6 +8,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { fetchFundHistory } from './fundApi';
 import { formatLocalDate } from '../utils/csv';
 import { createAlert } from './alertService';
+import { isAuthenticated } from '../hooks/useSupabase';
 import type { Holding, Transaction } from '../types';
 
 declare global {
@@ -525,6 +526,7 @@ export function reverseTransactionOnHolding(
 export async function addTransactionWithHoldingUpdate(
   transaction: Omit<Transaction, 'id' | 'createdAt'>
 ): Promise<{ transactionId: string; holdingUpdated: boolean }> {
+  if (!isAuthenticated()) throw new Error('认证已过期，请刷新页面重新登录');
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase 未配置');
   }
@@ -598,6 +600,7 @@ export async function addTransactionWithHoldingUpdate(
 export async function removeTransactionWithHoldingUpdate(
   transactionId: string
 ): Promise<void> {
+  if (!isAuthenticated()) throw new Error('认证已过期，请刷新页面重新登录');
   if (!isSupabaseConfigured()) return;
 
   const { data: txData, error: txError } = await supabase
@@ -688,6 +691,7 @@ async function syncGridOnTransactionDelete(transaction: any): Promise<void> {
  * @param fundCode 基金代码，用于定位要删除的交易记录
  */
 export async function removeHoldingWithTransactions(fundCode: string): Promise<void> {
+  if (!isAuthenticated()) throw new Error('认证已过期，请刷新页面重新登录');
   if (!isSupabaseConfigured()) return;
   if (!fundCode) throw new Error('fundCode 不能为空');
 

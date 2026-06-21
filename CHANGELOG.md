@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-06-21
+
+### Changed
+- **代码质量打磨**（4 轮迭代，各维度评分 ≥7/10）
+  - 消除 `lotTraceService.ts` 重复卖出匹配逻辑，复用 `navUpdateService.matchSellAgainstLots`
+  - 消除 4 处 `window.location.reload()`，改用事件驱动刷新（`dataChangeEvent.ts`），消除全页闪烁
+  - 清理 19 处冗余 `console.error/warn`（28→9），保留非关键路径调试信息
+  - 写入操作（`addTransaction`/`removeTransaction`/`removeHolding`）增加 session 校验
+- 测试从 538 增长到 **542**（新增 `dataChangeEvent` 单元测试）
+
 ## [2.7.0] - 2026-06-21
 
 ### Fixed

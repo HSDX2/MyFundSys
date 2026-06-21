@@ -6,6 +6,7 @@ import { deriveLots, deriveRealizedLots, type Lot } from '../services/navUpdateS
 import { fetchFundNav, batchFetchNav } from '../services/fundApi';
 import { formatMoney, formatPercent } from '../utils';
 import { formatLocalDate } from '../utils/csv';
+import { dispatchDataChanged } from '../utils/dataChangeEvent';
 import TotalAssetsCard from '../components/TotalAssetsCard';
 import './Layout.css';
 
@@ -35,7 +36,7 @@ const Holdings: React.FC = () => {
         try {
           await removeHolding(id);
           Toast.show({ content: '删除成功', position: 'bottom' });
-          window.location.reload();
+          dispatchDataChanged();
         } catch {
           Toast.show({ content: '删除失败', position: 'bottom' });
         }

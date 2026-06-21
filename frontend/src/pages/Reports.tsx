@@ -3,6 +3,7 @@ import { SpinLoading, Empty, Button, Toast } from 'antd-mobile';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { useHoldings } from '../hooks/useSync';
 import { exportDatabase, importDatabase } from '../db';
+import { dispatchDataChanged } from '../utils/dataChangeEvent';
 import { UploadOutline, DownlandOutline } from 'antd-mobile-icons';
 import './Layout.css';
 
@@ -68,7 +69,7 @@ const Reports: React.FC = () => {
       const text = await file.text();
       await importDatabase(text);
       Toast.show({ icon: 'success', content: '导入成功' });
-      window.location.reload();
+      dispatchDataChanged();
     } catch (error) {
       Toast.show({ icon: 'fail', content: '导入失败，请检查文件格式' });
     }

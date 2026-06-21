@@ -4,6 +4,7 @@ import { exportDatabase, importDatabase, resetDatabase } from '../db';
 import { useTransactions, useHoldings } from '../hooks/useSync';
 import { exportHoldingsToCSV, exportTransactionsToCSV, importTransactionsFromCSV, formatLocalDate } from '../utils/csv';
 import { addTransactionWithHoldingUpdate, processPendingTransactions } from '../services/navUpdateService';
+import { dispatchDataChanged } from '../utils/dataChangeEvent';
 import './Layout.css';
 
 const Settings: React.FC = () => {
@@ -23,7 +24,7 @@ const Settings: React.FC = () => {
         try {
           await resetDatabase();
           Toast.show({ content: '数据已重置', position: 'bottom' });
-          window.location.reload();
+          dispatchDataChanged();
         } catch (err) {
           Toast.show({ content: `重置失败: ${err instanceof Error ? err.message : '未知错误'}`, position: 'bottom' });
         }
@@ -61,7 +62,7 @@ const Settings: React.FC = () => {
       const content = await file.text();
       await importDatabase(content);
       Toast.show({ content: '导入成功', position: 'bottom' });
-      window.location.reload();
+      dispatchDataChanged();
     } catch {
       Toast.show({ content: '导入失败', position: 'bottom' });
     } finally {
@@ -135,8 +136,7 @@ const Settings: React.FC = () => {
       Toast.show({ content: resultMsg, position: 'bottom', duration: failCount > 0 ? 5000 : 2000 });
 
       await refresh();
-    } catch (err) {
-      console.error('CSV 导入失败:', err);
+    } catch {
       Toast.show({ content: 'CSV 导入失败，请检查文件格式', position: 'bottom' });
     } finally {
       setCsvImporting(false);
